@@ -186,3 +186,30 @@ Formatting, native and x86_64 Linux release compile checks, and the pinned
 Docker build passed. A differential regression case covers numeric widths,
 negative subunits, mixed terminators and EOF. Local tests and runtime benchmarks
 were deliberately skipped. Official correctness and Intel performance are pending.
+
+
+### Completed Intel measurement
+
+Retain the candidate at `8dd4f2f`. `run-bee64502fbeb` passed check, build,
+correctness, timeout and sandbox gates, with measured static axes:
+
+| T (ms) | M (bytes) | S | D | Machine points |
+|---:|---:|---:|---:|---:|
+| 55.221 | 12,730,368 | 555 | 1 | 69.711510 |
+
+This is **+1.148248 points** against the immediate `aa708b6` repeat and
+**+0.968005 points** against C's preceding historical best. Relative to that
+best, time fell 8.36%, measured memory fell 1.80%, and source grew by 10 lines.
+The actual S555 is lower than the S559 estimate above. The scoring contributions
+are approximately +0.948 runtime, +0.079 memory and -0.059 source points.
+
+All four tracks passed every gate in this submission. Unchanged A/B/D ran
+slower than their preceding repeats; their timings are not used to adjust C's
+result. This is one promising public-data Intel measurement, not proof of a
+stable improvement or final holdout correctness. Keep numeric conversion
+selected and evaluate country-major membership as the next separate experiment.
+
+Complete raw official evidence, generated 2026-10-30 23:03:59 UTC, is saved in
+[intel-8dd4f2f.json](../experiments/2026-10-30-c-short-decimals/intel-8dd4f2f.json).
+Results are recorded locally for the next deliberate submission, avoiding a
+separate documentation-only board run.
