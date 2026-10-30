@@ -287,5 +287,5 @@ All eleven differential suites pass for each packed candidate, including
 21 bits, maximum weights and wide distances. Every compared full-seed-1/42 hash
 matches the unchanged reference's published or previously verified output.
 Production formatting, Clippy with warnings denied, and offline Docker sandbox
-checks on both full seeds pass. Exact patches, raw rows and reproduction are in
+checks on both full seeds pass. Complete Rust sources, raw rows and reproduction are in
 [`experiments/2026-10-30-compact-graphs/`](../experiments/2026-10-30-compact-graphs/).

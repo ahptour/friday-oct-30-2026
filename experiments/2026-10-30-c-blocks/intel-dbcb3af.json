@@ -1,0 +1,37 @@
+{
+  "generated_at": "2026-10-30T22:30:43Z",
+  "team": "ahptour",
+  "track": "c",
+  "measurement": {
+    "run_id": "run-d637090437df",
+    "commit": "dbcb3af73a8975db728418b0f745aedb8b758a9c",
+    "pushed_at": "2026-10-30T22:29:38Z",
+    "dispatched_at": "2026-10-30T22:30:00Z",
+    "started_at": "2026-10-30T22:30:24Z",
+    "ended_at": "2026-10-30T22:30:25Z",
+    "queue_latency_s": 45.9,
+    "ok": true,
+    "stage": "scored",
+    "gates": {
+      "check": true,
+      "build": true,
+      "correctness": true,
+      "timeout": true,
+      "sandbox": true
+    },
+    "T_s": 0.059995,
+    "M_bytes": 13512704,
+    "S": 545,
+    "D": 1,
+    "K": 23.562915,
+    "points": 68.611451,
+    "static_axes": "measured",
+    "timeout_s": 43.332,
+    "build_s": 7.568,
+    "image_bytes": 118120237,
+    "failure": null,
+    "lang": [
+      "Rust"
+    ]
+  }
+}

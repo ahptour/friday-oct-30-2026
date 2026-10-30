@@ -5,6 +5,7 @@
 | 0 | Published Python reference | | 14.44 | 367 | 0 |
 | 1 | Rust parallel mapped CSV parsing, dense region lookup, exact atomic name/country interning | run-628c737f586e | 0.074043 | 16.949248 | 66.648923 |
 | 2 | One-byte country IDs and half-sized exact name table | run-50c660d01afb | 0.080884 | 10.768384 | 67.659457 |
+| 3 | 64-byte block parser and staged inline-name lookups | run-d637090437df | 0.059995 | 13.512704 | 68.611451 |
 
 Step 0 is the organisers' published calibration. Step 1 is the live-board
 measurement for commit `b5076d5` on 2026-10-30: S=365 and D=1. The score
@@ -110,3 +111,47 @@ the [official board feed](https://s3.amazonaws.com/raptors.dev/speeddemon.dev/20
 The second row was independently retrieved from that feed, generated at
 2026-10-30 21:30:21 UTC (14:30:21 PDT), and is preserved in
 [`board-a7abacb.json`](../experiments/2026-10-30-score-tradeoffs/board-a7abacb.json).
+
+
+## Step 3: 64-byte structural masks and staged name lookups (2026-10-30)
+
+Replace per-field delimiter searches with one structural pass over each block.
+AVX2 identifies quotes, commas and LF; carry-less multiplication derives quote
+parity. State crosses block boundaries, and a padded stack tail avoids loads
+past EOF. Quote-count deltas retain exact decoded name/note byte lengths.
+Known-length numeric fields use eight-digit arithmetic plus a scalar remainder.
+
+Split name keys from inline 24-byte payload heads and membership words. Keys
+include a fingerprint; full equality remains mandatory, including tails of
+longer names. A busy-key publication protocol uses Release/Acquire so readers
+never see partially initialized inline bytes. Two sixteen-record rings prefetch
+name slots, resolve names, prefetch country words, then perform exact first-bit
+updates. Both rings drain at every worker boundary. Bounded probing and the
+exact overflow map preserve long names, collisions and capacity overflow.
+
+This architecture was informed by
+[Cache Me's public C source](https://github.com/manusingh090/speed-demon-2026-entry/blob/3b56ff2ff0d5efa3cf22dd8a875e24b672a2bac1/track-c/main.cpp).
+No dependency, worker-count or compiler-flag changes accompany the candidate.
+The inline heads add 24 bytes per common-table slot, so runtime gains must pay
+for their additional memory and the larger source count.
+
+Submitted production code at `dbcb3af`. Local runtime tests and benchmarks were
+explicitly skipped at the user's request to obtain real Intel feedback first.
+Formatting and `cargo check` for native and x86_64 Linux passed.
+
+### Completed Intel measurement
+
+`run-d637090437df`, at `dbcb3af`, passed every check/build/correctness/timeout/
+sandbox gate. The October 30 22:30:43 UTC board snapshot reports:
+
+| T (s) | M (bytes) | S | D | K | Machine points |
+|---:|---:|---:|---:|---:|---:|
+| 0.059995 | 13,512,704 | 545 | 1 | 23.562915 | 68.611451 |
+
+The preceding historical best C result was `run-c3f9d13c494b` at `00f82d78`:
+T=0.080296 s, M=10,719,232 bytes, S=365, D=1, points=67.758543.
+The block-parser candidate is 25.28% faster, uses 26.06% more peak memory,
+and adds 180 counted lines. Its net improvement is **0.852908 points**.
+This is one public-data Intel run, not final holdout evidence. The raw result
+is saved in [intel-dbcb3af.json](../experiments/2026-10-30-c-blocks/intel-dbcb3af.json)
+from the [official board feed](https://s3.amazonaws.com/raptors.dev/speeddemon.dev/2026/board/board.json).
