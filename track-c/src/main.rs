@@ -337,9 +337,10 @@ struct Pending<'a> {
     country: usize,
     slot: u64,
 }
+const PIPELINE_DEPTH: usize = 32;
 struct Pipeline<'a> {
-    pending: [Option<Pending<'a>>; 16],
-    marks: [Option<(usize, u64)>; 16],
+    pending: [Option<Pending<'a>>; PIPELINE_DEPTH],
+    marks: [Option<(usize, u64)>; PIPELINE_DEPTH],
     cursor: usize,
 }
 impl<'a> Pipeline<'a> {
@@ -350,7 +351,7 @@ impl<'a> Pipeline<'a> {
         input: &[u8],
         groups: &mut [Group],
     ) {
-        let k = self.cursor % 16;
+        let k = self.cursor % PIPELINE_DEPTH;
         if let Some((word, bit)) = self.marks[k].take() {
             names.countries[word].fetch_or(bit, Ordering::Relaxed);
         }
@@ -379,8 +380,8 @@ fn parse<'a>(
 ) -> Vec<Group> {
     let mut groups = vec![Group::default(); countries];
     let mut pipeline = Pipeline {
-        pending: [None; 16],
-        marks: [None; 16],
+        pending: [None; PIPELINE_DEPTH],
+        marks: [None; PIPELINE_DEPTH],
         cursor: 0,
     };
     let mut structure = Structure::new(input, start);
@@ -426,8 +427,8 @@ fn parse<'a>(
         pipeline.advance(Some(next), names, input, &mut groups);
         pos = (eol + 1).min(input.len());
     }
-    // Resolve the last sixteen names and retire their membership updates.
-    for _ in 0..32 {
+    // Drain both name resolution and membership updates at every boundary.
+    for _ in 0..2 * PIPELINE_DEPTH {
         pipeline.advance(None, names, input, &mut groups);
     }
     groups
@@ -504,7 +505,7 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
     let header_end = find(input, 0, b'\n') + 1;
     let workers = thread::available_parallelism()
         .map_or(1, usize::from)
-        .min(12)
+        .min(6)
         .min(len.div_ceil(64 * 1024));
     let mut bounds = vec![header_end];
     for worker in 1..workers {

@@ -80,10 +80,18 @@ impl Hasher for Fast {
 type Table<K, V> = HashMap<K, V, BuildHasherDefault<Fast>>;
 
 struct Query {
-    terms: Vec<usize>,
-    ops: Vec<u8>,
+    // Frozen grammar: at most eight phrase terms or six Boolean terms.
+    // At most 50,000 queries imply at most 400,000 distinct term IDs.
+    terms: [u32; 8],
+    ops: [u8; 7],
+    len: u8,
     // Dense phrase ID; usize::MAX marks a Boolean query.
     phrase: usize,
+}
+impl Query {
+    fn terms(&self) -> &[u32] {
+        &self.terms[..usize::from(self.len)]
+    }
 }
 #[derive(Clone, Default)]
 struct Summary {
@@ -101,15 +109,17 @@ impl Summary {
     }
 }
 struct Clause {
-    query: usize,
+    query: u32,
     // Dense Boolean ID, independent of original query/output order.
-    mask: usize,
-    anchor: usize,
-    terms: Vec<(usize, bool)>,
+    mask: u32,
+    anchor: u32,
+    // Each remaining test is term ID * 2 + positive; no heap payload.
+    terms: [u32; 6],
+    len: u8,
 }
 fn anchors(
     input: &[u8],
-    dictionary: &Table<[u8; 32], usize>,
+    dictionary: &Table<[u8; 32], u32>,
     queries: &[Query],
 ) -> (Vec<Vec<usize>>, Vec<Clause>, Vec<u32>) {
     let mut frequencies = vec![0u32; dictionary.len()];
@@ -126,7 +136,7 @@ fn anchors(
             for (dst, &byte) in key.iter_mut().zip(word) {
                 *dst = byte.to_ascii_lowercase();
             }
-            if let Some(&term) = dictionary.get(&key)
+            if let Some(term) = dictionary.get(&key).map(|&term| term as usize)
                 && seen[term] != doc as u32
             {
                 seen[term] = doc as u32;
@@ -142,8 +152,11 @@ fn anchors(
         .filter(|(_, q)| q.phrase == usize::MAX)
         .enumerate()
     {
-        let mut clauses = vec![vec![(query.terms[0], true)]];
-        for (&op, &term) in query.ops.iter().zip(&query.terms[1..]) {
+        let mut clauses = vec![vec![(query.terms()[0], true)]];
+        for (&op, &term) in query.ops[..usize::from(query.len) - 1]
+            .iter()
+            .zip(&query.terms()[1..])
+        {
             if op == b'O' {
                 clauses.push(vec![(term, true)]);
             } else {
@@ -161,23 +174,29 @@ fn anchors(
             let anchor = terms
                 .iter()
                 .filter(|(_, positive)| *positive)
-                .min_by_key(|(term, _)| frequencies[*term])
+                .min_by_key(|(term, _)| frequencies[*term as usize])
                 .unwrap()
                 .0;
             terms.retain(|&(term, positive)| term != anchor || !positive);
             terms.sort_unstable_by_key(|&(term, positive)| {
                 if positive {
-                    frequencies[term]
+                    frequencies[term as usize]
                 } else {
-                    1000 - frequencies[term]
+                    1000 - frequencies[term as usize]
                 }
             });
-            anchors[anchor].push(all.len());
+            let mut packed = [0; 6];
+            assert!(terms.len() <= packed.len());
+            for (slot, &(term, positive)) in packed.iter_mut().zip(&terms) {
+                *slot = term.checked_mul(2).unwrap() | u32::from(positive);
+            }
+            anchors[anchor as usize].push(all.len());
             all.push(Clause {
-                query: id,
-                mask,
+                query: u32::try_from(id).unwrap(),
+                mask: u32::try_from(mask).unwrap(),
                 anchor,
-                terms,
+                terms: packed,
+                len: terms.len() as u8,
             });
         }
     }
@@ -228,19 +247,19 @@ fn flush(
     touched.clear();
     for &id in candidates {
         let clause = &clauses[id];
-        let mut value = bits[clause.anchor];
-        for &(term, positive) in &clause.terms {
-            let mask = bits[term];
-            value &= if positive { mask } else { !mask };
+        let mut value = bits[clause.anchor as usize];
+        for &term in &clause.terms[..usize::from(clause.len)] {
+            let mask = bits[(term >> 1) as usize];
+            value &= if term & 1 != 0 { mask } else { !mask };
             if value == 0 {
                 break;
             }
         }
         if value != 0 {
-            if query_bits[clause.mask] == 0 {
+            if query_bits[clause.mask as usize] == 0 {
                 touched.push(id);
             }
-            query_bits[clause.mask] |= value;
+            query_bits[clause.mask as usize] |= value;
         }
     }
     for term in touched_terms.drain(..) {
@@ -248,9 +267,9 @@ fn flush(
     }
     for &id in touched.iter() {
         let clause = &clauses[id];
-        let query = clause.query;
-        let word = query_bits[clause.mask];
-        query_bits[clause.mask] = 0;
+        let query = clause.query as usize;
+        let word = query_bits[clause.mask as usize];
+        query_bits[clause.mask as usize] = 0;
         let count = word.count_ones();
         if count <= 4 {
             let mut rest = word;
@@ -327,7 +346,7 @@ fn read_token(input: &[u8], pos: &mut usize, token: &mut [u8; 32]) -> usize {
 }
 fn parse(
     input: &[u8],
-    dictionary: &Table<[u8; 32], usize>,
+    dictionary: &Table<[u8; 32], u32>,
     anchors: &[Vec<usize>],
     queries: &[Query],
     clauses: &[Clause],
@@ -378,9 +397,10 @@ fn parse(
                 pos += 1;
                 continue;
             }
-            let term = dictionary.get(&token).copied().unwrap_or(usize::MAX);
+            let term = dictionary.get(&token).copied().unwrap_or(u32::MAX);
             tokens.push(term);
-            if term != usize::MAX {
+            if term != u32::MAX {
+                let term = term as usize;
                 if bits[term] == 0 {
                     touched_terms.push(term);
                     candidates.extend_from_slice(&anchors[term]);
@@ -398,9 +418,8 @@ fn parse(
         }
         for &(id, start) in &phrase_candidates {
             let query = &queries[id];
-            let terms = &query.terms;
-            if matched[query.phrase] != doc
-                && tokens.get(start..start + terms.len()) == Some(terms.as_slice())
+            let terms = query.terms();
+            if matched[query.phrase] != doc && tokens.get(start..start + terms.len()) == Some(terms)
             {
                 matched[query.phrase] = doc;
                 results.add(id, doc);
@@ -423,7 +442,7 @@ fn parse(
 
 fn solve(data: &Path, out: &Path) -> io::Result<()> {
     let query_text = fs::read(data.join("queries.txt"))?;
-    let mut dictionary: Table<[u8; 32], usize> = Table::default();
+    let mut dictionary: Table<[u8; 32], u32> = Table::default();
     let mut queries = Vec::new();
     let mut phrases = 0;
     for line in query_text
@@ -437,13 +456,14 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
             &line[5..]
         };
         let mut query = Query {
-            terms: Vec::new(),
-            ops: Vec::new(),
+            terms: [0; 8],
+            ops: [0; 7],
+            len: 0,
             phrase: usize::MAX,
         };
         for (i, word) in rest.split(|&b| b == b' ').enumerate() {
             if !phrase && i % 2 == 1 {
-                query.ops.push(word[0]);
+                query.ops[i / 2] = word[0];
                 continue;
             }
             let mut key = [0; 32];
@@ -451,12 +471,13 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
             let id = match dictionary.get(&key) {
                 Some(&id) => id,
                 None => {
-                    let id = dictionary.len();
+                    let id = u32::try_from(dictionary.len()).unwrap();
                     dictionary.insert(key, id);
                     id
                 }
             };
-            query.terms.push(id);
+            query.terms[usize::from(query.len)] = id;
+            query.len += 1;
         }
         if phrase {
             query.phrase = phrases;
@@ -473,10 +494,10 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
         .enumerate()
         .filter(|(_, q)| q.phrase != usize::MAX)
     {
-        let anchor = (0..query.terms.len())
-            .min_by_key(|&i| frequencies[query.terms[i]])
+        let anchor = (0..query.terms().len())
+            .min_by_key(|&i| frequencies[query.terms()[i] as usize])
             .unwrap();
-        checks[query.terms[anchor]].push((id, anchor));
+        checks[query.terms()[anchor] as usize].push((id, anchor));
     }
     let workers = thread::available_parallelism()
         .map_or(1, usize::from)

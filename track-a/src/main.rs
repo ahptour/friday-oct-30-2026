@@ -171,8 +171,22 @@ fn percentiles(values: &mut [u32]) -> [u32; 3] {
     result
 }
 
+fn append_integer(output: &mut Vec<u8>, mut value: u64) {
+    let mut digits = [0u8; 20];
+    let mut start = digits.len();
+    loop {
+        start -= 1;
+        digits[start] = b'0' + (value % 10) as u8;
+        value /= 10;
+        if value == 0 {
+            break;
+        }
+    }
+    output.extend_from_slice(&digits[start..]);
+}
+
 fn format_hour(label: [u8; 13], groups: Groups<'_>) -> Vec<u8> {
-    let mut output = Vec::new();
+    let mut output = Vec::with_capacity(groups.len().saturating_mul(128).min(64 * 1024));
     let mut groups: Vec<_> = groups.into_iter().collect();
     groups.sort_unstable_by(|a, b| a.0.cmp(b.0));
     for (endpoint, mut group) in groups {
@@ -182,7 +196,18 @@ fn format_hour(label: [u8; 13], groups: Groups<'_>) -> Vec<u8> {
         output.extend_from_slice(&label);
         output.extend_from_slice(b":00:00Z ");
         output.extend_from_slice(endpoint);
-        writeln!(output, " {count} {p50} {p95} {p99} {} {ppm}", group.errors).unwrap();
+        for value in [
+            count,
+            u64::from(p50),
+            u64::from(p95),
+            u64::from(p99),
+            group.errors,
+            ppm,
+        ] {
+            output.push(b' ');
+            append_integer(&mut output, value);
+        }
+        output.push(b'\n');
     }
     output
 }

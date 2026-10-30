@@ -119,6 +119,45 @@ class TrackCTest(unittest.TestCase):
                                rng.choice([3, 7, 12, 20, 9999999]), '-0.05'))
         self.check_bytes(b''.join(rows))
 
+    def test_matching_inline_prefixes_with_colliding_tails(self):
+        # First/middle/last sampled words and the inline 24-byte head match.
+        # More than 32 colliding names also exercise the exact overflow map.
+        names = ['A' * 32 + chr(65 + i // 26) + chr(65 + i % 26) + 'A' * 86
+                 for i in range(80)]
+        rows = [HEADER]
+        for repeat in range(4):
+            for i, name in enumerate(names):
+                rows.append(record(repeat * 80 + i + 1, name, '',
+                                   [3, 7, 12, 9999999][repeat]))
+        self.check_bytes(b''.join(rows))
+
+    def test_inline_and_encoded_name_length_boundaries(self):
+        names = ['A' * 23, 'A' * 24, 'A' * 25, 'A' * 65535, 'A' * 65536]
+        self.check_bytes(HEADER + b''.join(
+            record(i + 1, name, '') for i, name in enumerate(names * 3)))
+
+    def test_pipeline_drain_boundaries(self):
+        # Keep the file below 64 KiB so these are per-worker pipeline lengths.
+        names = ['A' * 23, 'A' * 24, 'A' * 25]
+        for count in [0, 1, 15, 16, 17, 31, 32, 33, 63, 64, 65]:
+            with self.subTest(count=count):
+                self.check_bytes(HEADER + b''.join(
+                    record(i + 1, names[i % len(names)], '',
+                           [3, 7, 12, 9999999][i % 4])
+                    for i in range(count)))
+
+    def test_doubled_quotes_at_every_structural_block_alignment(self):
+        rows = [HEADER]
+        offset = 0  # Structure starts immediately after the header.
+        for alignment in range(64):
+            identifier = alignment + 1
+            prefix = f'{identifier},"name","'.encode()
+            padding = (alignment - offset - len(prefix)) % 64
+            encoded = record(identifier, 'name', 'x' * padding + '"\none,"')
+            rows.append(encoded)
+            offset += len(encoded)
+        self.check_bytes(b''.join(rows))
+
     def test_parallel_country_words_and_shared_names(self):
         codes = [chr(65 + i // 676) + chr(65 + i // 26 % 26) + chr(65 + i % 26)
                  for i in range(240)]
@@ -136,7 +175,7 @@ class TrackCTest(unittest.TestCase):
 
     def test_all_country_ids_and_unknown_regions(self):
         # Full/sample permit 240 countries plus _UNMATCHED, fitting one byte.
-        # Repeated names exercise every word of the four-word country bitset.
+        # Repeated names exercise every country row of the membership bitset.
         codes = [chr(65 + i // 676) + chr(65 + i // 26 % 26) + chr(65 + i % 26)
                  for i in range(240)]
         regions = b'region_id,country\n' + ''.join(

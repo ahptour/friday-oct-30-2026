@@ -94,6 +94,20 @@ class TrackBTest(unittest.TestCase):
         self.check(docs, mixed)
         self.check(docs, mixed[::-1])
 
+    def test_maximum_query_widths_and_repeated_phrase_hits(self):
+        patterns = ['a b c d e f g h a b c d e f g h',
+                    'a a a a a a a a a', 'h g f e d c b a',
+                    'a b c d unqueried e f g h', 'a b c d e f g', '']
+        docs = [patterns[i % len(patterns)] for i in range(195)]
+        queries = ['PHRASE "a b c d e f g h"',
+                   'BOOL a OR b NOT c AND d OR e NOT f',
+                   'PHRASE "a a a a a a a a"',
+                   'BOOL a AND b AND c AND d AND e AND f',
+                   'PHRASE "h g f e d c b a"',
+                   'BOOL a NOT a OR b NOT b OR c NOT c',
+                   'PHRASE "a b c d e f g h"', 'BOOL a']
+        self.check(docs, queries)
+
     def test_randomized_sparse_dense_sets_and_parallel_chunks(self):
         for seed in [2, 19]:
             with self.subTest(seed=seed):

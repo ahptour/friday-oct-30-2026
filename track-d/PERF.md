@@ -324,3 +324,32 @@ minima add work, but its exact contribution was not profiled on Intel.
 Preserve [`d-predecessor.rs`](../experiments/2026-10-30-rejected-pipelines/d-predecessor.rs)
 and [raw Intel evidence](../experiments/2026-10-30-rejected-pipelines/intel-330dbc3.json)
 for subsequent investigation.
+
+
+## Combined remaining-plan candidate (2026-10-30)
+
+The user requested the remaining concrete candidates together in one push,
+superseding the plan's separate-submission workflow.
+
+Separate parsing-worker and query-worker limits. Keep up to twelve edge
+parsing workers and two concurrent CSR builds; cap only the dynamically claimed
+query work at six workers (or available parallelism/query count when smaller).
+Keep packed adjacency and the selected distance/node queues. This can reduce
+live per-query maps and heaps, but construction overlaps may still determine
+peak, and reduced concurrency can lose runtime. No guaranteed memory target
+or speedup is claimed.
+
+Immediate official baseline at `d34c3a4`, `run-75c0e7050728`:
+318.682 ms, 96,813,056 bytes, S361, D1,
+61.671800 points. Historical best: 61.969457 points
+at 309.870 ms / 96,964,608 bytes / S361.
+Estimated S362 (local formatted source-line delta, not official S) requires
+below 318.418 ms at the recent baseline's memory, or 309.613 ms
+at the historical best's memory. Actual peak memory is unmeasured; evaluate
+the full measured score after the official run.
+
+Formatted and source-reviewed. Per user instruction, no local compilation,
+solver execution, tests, benchmarks or Docker runs were performed. Official
+compilation, correctness and performance remain pending. Complete pre-change
+and candidate files and the raw baseline board response are in
+[`experiments/2026-10-30-batched-plan`](../experiments/2026-10-30-batched-plan/).

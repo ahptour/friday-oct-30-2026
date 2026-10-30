@@ -251,3 +251,31 @@ and shorter (305 versus 465 counted lines). Select this implementation.
 This is one public-data Intel measurement, not holdout validation.
 [Raw result and restored-D repeat](../experiments/2026-10-30-rejected-pipelines/intel-9e2af17.json)
 come from the official feed generated at 2026-10-30 22:50:48 UTC.
+
+
+## Combined remaining-plan candidate (2026-10-30)
+
+The user requested the remaining concrete candidates together in one push,
+superseding the plan's separate-submission workflow.
+
+Replace generic integer formatting in `format_hour` with a twenty-byte
+stack decimal converter, emitting zero explicitly through the same loop and
+preserving all u64/u32 values. Reserve at most 64 KiB initially per hour, based
+on group count; the output grows normally as needed. Keep endpoint byte ordering,
+percentile ranks, error-ppm arithmetic, hour indexing, parser and twelve-worker
+hour ownership unchanged. This tests output work without reviving compact records.
+
+Immediate official baseline at `d34c3a4`, `run-feb3a00d8e4c`:
+43.964 ms, 21,929,984 bytes, S305, D1,
+76.215158 points. Historical best: 77.197581 points
+at 42.205 ms / 19,369,984 bytes / S305.
+Estimated S329 (local formatted source-line delta, not official S) requires
+below 42.976 ms at the recent baseline's memory, or 41.257 ms
+at the historical best's memory. Actual peak memory is unmeasured; evaluate
+the full measured score after the official run.
+
+Formatted and source-reviewed. Per user instruction, no local compilation,
+solver execution, tests, benchmarks or Docker runs were performed. Official
+compilation, correctness and performance remain pending. Complete pre-change
+and candidate files and the raw baseline board response are in
+[`experiments/2026-10-30-batched-plan`](../experiments/2026-10-30-batched-plan/).

@@ -192,3 +192,39 @@ harness's prewarming, parent-cgroup memory measurement and five-run aggregation;
 retain every run, all gates and hashes, and both official source counts.
 Compare score deltas per pair before making a final selection. ARM64 timings
 and emulated AMD64 runs cannot complete that comparison.
+
+
+## Combined remaining-plan candidate (2026-10-30)
+
+The user requested the remaining concrete candidates together in one push,
+superseding the plan's separate-submission workflow.
+
+Inline eight u32 term IDs and seven operator bytes per query. Retain
+explicit length and dense phrase IDs, preserving mixed output order. Store each
+Boolean clause's remaining tests in six u32 slots with the low bit indicating
+positive membership; query, Boolean mask and anchor IDs use u32. Query and term
+ID conversions are checked. The frozen maximum of 50,000 queries with eight
+terms bounds unique query terms by 400,000, safely below the 31-bit clause ID
+payload and the u32::MAX unknown-token sentinel. Document token buffers now
+also use u32. Boolean expansion, contradiction removal and rarest anchors are
+unchanged; operators still apply left to right. Phrase comparisons retain every
+term and repeated occurrence; per-document stamps prevent duplicate hits.
+Keep twelve workers and the current category-sized scratch arrays. This combined
+candidate does not independently resolve that older scratch-array experiment.
+The larger hybrid-postings B rewrite remains a conditional architectural option,
+not part of the concrete bounded-query candidate.
+
+Immediate official baseline at `d34c3a4`, `run-16eafca1daa5`:
+463.679 ms, 67,588,096 bytes, S548, D1,
+61.394775 points. Historical best: 61.902928 points
+at 437.009 ms / 70,397,952 bytes / S541.
+Estimated S566 (local formatted source-line delta, not official S) requires
+below 459.205 ms at the recent baseline's memory, or 431.126 ms
+at the historical best's memory. Actual peak memory is unmeasured; evaluate
+the full measured score after the official run.
+
+Formatted and source-reviewed. Per user instruction, no local compilation,
+solver execution, tests, benchmarks or Docker runs were performed. Official
+compilation, correctness and performance remain pending. Complete pre-change
+and candidate files and the raw baseline board response are in
+[`experiments/2026-10-30-batched-plan`](../experiments/2026-10-30-batched-plan/).

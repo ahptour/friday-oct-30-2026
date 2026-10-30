@@ -246,3 +246,44 @@ Complete baseline and candidate files are archived under
 Formatted and reviewed source indexing, publication, pipeline drain and counting.
 Per the user's latest instruction, no Docker build or local execution was run.
 Official compilation, correctness gates and Intel score are pending.
+
+
+### Completed Intel membership measurement
+
+`run-7e3699d8615a` at `d34c3a4` passed every official gate with measured
+static axes: 54.450 ms, 13,246,464 bytes, S561, D1, 69.656556 points.
+Compared with decimal-only `8dd4f2f`, runtime improved by 1.40%, measured peak
+increased 4.05%, and score fell **0.054954 points**. This close single-run
+comparison establishes no score gain. Retain the layout provisionally for the
+user-requested combined concurrency/pipeline experiment, rather than attributing
+its faster runtime to a proven overall improvement. Raw evidence is saved in
+[intel-d34c3a4.json](../experiments/2026-10-30-c-country-major/intel-d34c3a4.json).
+
+
+## Combined remaining-plan candidate (2026-10-30)
+
+The user requested the remaining concrete candidates together in one push,
+superseding the plan's separate-submission workflow.
+
+Cap parsing at six workers and increase each pipeline stage from 16 to
+32 entries. One PIPELINE_DEPTH constant controls both arrays, initialization,
+ring indexing and the two-stage drain. Total staged capacity at the full worker
+limit is unchanged (12 * 16 per stage becomes 6 * 32). The hypothesis is fewer
+competing hardware threads with more per-thread lookahead. This combines two
+knobs at the user's request; their separate effects cannot be inferred. Keep
+short decimal conversion, country-major membership and the exact interner.
+
+Immediate official baseline at `d34c3a4`, `run-7e3699d8615a`:
+54.450 ms, 13,246,464 bytes, S561, D1,
+69.656556 points. Historical best: 69.711510 points
+at 55.221 ms / 12,730,368 bytes / S555.
+Estimated S562 (local formatted source-line delta, not official S) requires
+below 54.421 ms at the recent baseline's memory, or 55.014 ms
+at the historical best's memory. Actual peak memory is unmeasured; evaluate
+the full measured score after the official run.
+
+Formatted and source-reviewed. Per user instruction, no local compilation,
+solver execution, tests, benchmarks or Docker runs were performed. Official
+compilation, correctness and performance remain pending. Complete pre-change
+and candidate files and the raw baseline board response are in
+[`experiments/2026-10-30-batched-plan`](../experiments/2026-10-30-batched-plan/).
