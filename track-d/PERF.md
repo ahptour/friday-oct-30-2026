@@ -230,3 +230,62 @@ matched. Even without a source penalty this loses about 9.275 local machine
 points, so the revised guard does not rescue serial preprocessing. It passes
 all ten differential suites and full seeds 1 and 42. Keep D production unchanged.
 The guarded source and raw series are preserved with the other experiments.
+
+## Step 7: four-byte adjacency with exact exceptions (2026-10-30)
+
+Retain parallel parsing, concurrent CSR builds and twelve query workers. Each
+ordinary final edge uses 21 node bits and 10 weight bits. The high bit tags an
+index into that direction's full-width exception vector. Larger nodes and all
+uint32 weights remain exact; distances remain uint64. No input recognition,
+dependencies, PGO or compiler flags are added.
+
+Full seeds 1/42 each have five million edges and 1,740,512 nodes, with
+52,012/52,384 weights above 1023. The two final edge arrays plus live exceptions
+need 40,832,192/40,838,144 bytes instead of 80,000,000, excluding capacity.
+This approximately 39.2 MB payload saving is separate from measured peak.
+
+Nine alternating trials per variant and seed used offline Rust 1.99.1 Docker
+builds on local ARM64 Linux, CPUs 0–11, identical limits and no competing work.
+Warm summaries exclude each variant's first trial, use median exec-to-exit time
+and maximum cgroup peak, and retain every row. These are local diagnostics,
+not Intel results or the final five-run scoring estimator.
+
+| Seed | Variant | Warm median (ms) | Worst warm peak (bytes) | Estimated point delta with source |
+|---|---|---:|---:|---:|
+| 1 | Baseline | 167.087 | 138,117,120 | 0 |
+| 1 | Tagged vector, weights 0–1023 | 159.384 | 101,183,488 | +1.630 |
+| 1 | Slot-keyed exceptions, weights 0–2046 | 163.581 | 96,751,616 | +1.498 |
+| 1 | 0–2046, forward then derive reverse | 242.717 | 96,821,248 | -2.903 |
+| 42 | Baseline | 172.764 | 137,486,336 | 0 |
+| 42 | Tagged vector, weights 0–1023 | 161.542 | 96,493,568 | +2.033 |
+| 42 | Slot-keyed exceptions, weights 0–2046 | 168.472 | 96,100,352 | +1.550 |
+| 42 | 0–2046, forward then derive reverse | 251.192 | 95,584,256 | -2.877 |
+
+Source estimates are 336/361/366/379 respectively, after local canonical Rust
+formatting plus the unchanged Dockerfile; D=1 throughout. Only baseline S is
+official. Select the tagged vector for an Intel trial: local full-scale time
+falls 4.61%/6.50%, and worst warm peak falls 26.74%/29.82%. No new Intel score
+or official candidate S is claimed.
+
+The first series retained a 227,766,272-byte baseline peak despite per-run
+prewarming; it is not selection evidence. The table uses a subsequent diagnostic
+with read-only input pages pinned by an idle helper outside measured cgroups.
+Prewarming still precedes every run. Warm D rows record 12,288 file bytes after
+exit. This pinning is benchmark machinery, absent from solvers and production
+Dockerfiles. The timer reads container `memory.peak` before teardown; the
+official harness reads a dedicated parent's peak after teardown.
+
+Separate phase diagnostics explain the sequential build's remaining peak:
+forward construction reaches 67,690,496 bytes; freeing raw edges drops current
+memory to 27,582,464; the finished graph pair holds about 54.6 MB. Query execution
+then reaches 94,806,016 bytes. Twelve workers retain two maps and two queues
+each; search scratch and allocator memory now dominate. Instrumented phase
+runs are excluded from timing selection.
+
+All eleven differential suites pass for each packed candidate, including
+1023/1024 and 2046/2047 boundaries, maximal packed node fields, node IDs above
+21 bits, maximum weights and wide distances. Every compared full-seed-1/42 hash
+matches the unchanged reference's published or previously verified output.
+Production formatting, Clippy with warnings denied, and offline Docker sandbox
+checks on both full seeds pass. Exact patches, raw rows and reproduction are in
+[`experiments/2026-10-30-compact-graphs/`](../experiments/2026-10-30-compact-graphs/).

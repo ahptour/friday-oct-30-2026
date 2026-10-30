@@ -150,3 +150,31 @@ PGO lost 1.097195 points relative to hour ownership without PGO: runtime,
 memory and source size all increased. Restore the previous Docker build.
 The measured commit preserves the complete reproducible PGO experiment,
 including the unchanged generators and training scripts.
+
+## Persistent worker state (2026-10-30; not selected)
+
+An isolated candidate retains each worker's exact endpoint dictionary, dense
+groups, sorted endpoint IDs and latency capacities across hours, while clearing
+counts and lengths after output. The hour label is read once per hour. It keeps
+all indexed ranges and updates endpoint order when new keys arrive.
+
+Twenty alternating warm native ARM64 macOS trials suggested 9.29% less time
+(27.754 to 25.177 ms), but worst native footprint rose 17.1%. That footprint is
+not cgroup memory. Subsequent Linux ARM64 Docker comparisons used nine runs per
+variant and seed, identical limits and externally pinned input pages. Each warm
+summary excludes trial 0 and retains all raw samples.
+
+| Seed | Variant | Warm median (ms) | Worst warm peak (bytes) | Estimated point delta with source |
+|---|---|---:|---:|---:|
+| 1 | Baseline | 24.132 | 23,187,456 | 0 |
+| 1 | Persistent state | 23.518 | 25,300,992 | -0.429 |
+| 42 | Baseline | 25.310 | 23,306,240 | 0 |
+| 42 | Persistent state | 25.226 | 26,230,784 | -0.808 |
+
+The estimate includes S approximately 272 to 301 and unchanged D=1. Retained
+endpoint unions and high-water capacities can grow on skewed/disjoint hours.
+The local Linux runtime benefit does not repay memory and source costs; leave
+production A unchanged. Ten differential suites, a supplemental single-worker
+persistence fixture, tiny/sample/full seed 1, sample 42's unchanged Python
+oracle, and Docker full seed 42 all pass. Reproduction and evidence are in
+[`experiments/2026-10-30-compact-graphs/`](../experiments/2026-10-30-compact-graphs/).

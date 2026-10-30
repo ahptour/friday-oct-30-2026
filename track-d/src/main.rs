@@ -105,7 +105,10 @@ struct Edge {
 }
 struct Graph {
     offsets: Vec<u32>,
-    edges: Vec<Edge>,
+    // Ordinary entries use 21 node bits and 10 weight bits. The high bit tags
+    // an index into full-width exceptions, including nodes outside 21 bits.
+    edges: Vec<u32>,
+    large: Vec<Edge>,
 }
 impl Graph {
     fn build(n: usize, parts: &[Part], reverse: bool) -> Self {
@@ -117,22 +120,48 @@ impl Graph {
         for i in 1..=n {
             offsets[i] += offsets[i - 1];
         }
-        let mut edges = vec![Edge::default(); offsets[n] as usize];
+        let mut edges = vec![0u32; offsets[n] as usize];
+        let mut large = Vec::new();
         for edge in parts.iter().flat_map(Part::iter) {
             let slot = &mut offsets[edge[from] as usize];
-            edges[*slot as usize] = Edge {
-                node: edge[1 - from],
-                weight: edge[2],
+            let node = edge[1 - from];
+            edges[*slot as usize] = if node < (1 << 21) && edge[2] < (1 << 10) {
+                node | (edge[2] << 21)
+            } else {
+                // Preserve every legal weight and node ID rather than disabling
+                // compaction for an entire graph because of a rare wide edge.
+                let index = u32::try_from(large.len()).unwrap();
+                assert!(index < 1 << 31);
+                large.push(Edge {
+                    node,
+                    weight: edge[2],
+                });
+                index | (1 << 31)
             };
             *slot += 1;
         }
         // Construction leaves each node's end offset; restore start offsets.
         offsets.rotate_right(1);
         offsets[0] = 0;
-        Self { offsets, edges }
+        Self {
+            offsets,
+            edges,
+            large,
+        }
     }
-    fn neighbors(&self, node: usize) -> &[Edge] {
-        &self.edges[self.offsets[node] as usize..self.offsets[node + 1] as usize]
+    fn neighbors(&self, node: usize) -> impl Iterator<Item = Edge> + '_ {
+        self.edges[self.offsets[node] as usize..self.offsets[node + 1] as usize]
+            .iter()
+            .map(|&packed| {
+                if packed >> 31 == 0 {
+                    Edge {
+                        node: packed & 0x1fffff,
+                        weight: packed >> 21,
+                    }
+                } else {
+                    self.large[(packed & 0x7fffffff) as usize]
+                }
+            })
     }
 }
 #[derive(Default)]
@@ -193,7 +222,7 @@ impl Search {
         if distance != self.distance[&node] {
             return;
         }
-        for &Edge { node, weight } in graph.neighbors(node as usize) {
+        for Edge { node, weight } in graph.neighbors(node as usize) {
             let candidate = distance + u64::from(weight);
             let slot = self.distance.entry(node).or_insert(u64::MAX);
             if candidate < *slot {
@@ -217,8 +246,8 @@ fn shortest(
     if source == target {
         return 0;
     }
-    if forward.neighbors(source as usize).is_empty()
-        || backward.neighbors(target as usize).is_empty()
+    if forward.offsets[source as usize] == forward.offsets[source as usize + 1]
+        || backward.offsets[target as usize] == backward.offsets[target as usize + 1]
     {
         return -1;
     }

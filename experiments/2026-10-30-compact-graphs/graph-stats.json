@@ -1,0 +1,18 @@
+{
+  "1": {
+    "nodes": 1740512,
+    "edges": 5000000,
+    "weights_ge_1024": 52012,
+    "weights_ge_2047": 3496,
+    "tag10_final_edge_payload_bytes": 40832192,
+    "old_final_edge_payload_bytes": 80000000
+  },
+  "42": {
+    "nodes": 1740512,
+    "edges": 5000000,
+    "weights_ge_1024": 52384,
+    "weights_ge_2047": 3493,
+    "tag10_final_edge_payload_bytes": 40838144,
+    "old_final_edge_payload_bytes": 80000000
+  }
+}

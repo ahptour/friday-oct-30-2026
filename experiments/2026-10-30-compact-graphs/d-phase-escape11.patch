@@ -1,0 +1,44 @@
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -271,6 +271,11 @@
+     }
+     if best == u64::MAX { -1 } else { best as i64 }
+ }
++fn memory(label: &str) {
++    eprintln!("MEM {} current={} peak={}",label,
++        fs::read_to_string("/sys/fs/cgroup/memory.current").unwrap().trim(),
++        fs::read_to_string("/sys/fs/cgroup/memory.peak").unwrap().trim());
++}
+ fn solve(data: &Path, out: &Path) -> io::Result<()> {
+     let file = File::open(data.join("graph.txt"))?;
+     let size = file.metadata()?.len() as usize;
+@@ -302,13 +307,16 @@
+             .map(|job| job.join().unwrap())
+             .collect::<Vec<_>>()
+     });
++    memory("parts");
+     let (forward, backward) = thread::scope(|scope| {
+         let reverse = scope.spawn(|| Graph::build(n, &parts, true));
+         let forward = Graph::build(n, &parts, false);
+         (forward, reverse.join().unwrap())
+     });
++    memory("both-graphs");
+     drop(parts);
+     drop(mapping);
++    memory("parts-released");
+     let input = fs::read(data.join("queries.txt"))?;
+     let mut cursor = 0;
+     let mut queries = Vec::new();
+@@ -331,9 +339,12 @@
+                         Ordering::Relaxed,
+                     );
+                 }
++                eprintln!("SEARCH {:?}", searches.iter().map(|s| (s.distance.capacity(),s.heap.small.capacity(),s.heap.large.capacity())).collect::<Vec<_>>());
++                memory("search-worker-complete");
+             });
+         }
+     });
++    memory("queries-complete");
+     fs::create_dir_all(out)?;
+     let mut output = Vec::new();
+     for answer in answers {

@@ -10,6 +10,11 @@ workers. Temporary edges use eight bytes when both node IDs and the weight fit
 in 21 bits; a tagged index preserves larger values in a full-width side list.
 Build compact forward and reverse CSR adjacency arrays concurrently, reusing
 their offsets as write cursors and restoring the starts after construction.
+Each ordinary adjacency entry occupies four bytes: 21 node bits, 10 weight
+bits, and a tag bit. Weights up to 1023 and nodes below 2^21 fit directly. A
+tagged entry indexes that direction's full-width exception vector, so larger
+weights and node IDs remain exact. Narrowing individual entries does not
+require every edge in the graph to fit.
 Both preserve parallel edges, duplicates, zero weights and self-loops. No node
 ordering, geometry, or input seed is assumed.
 
@@ -78,6 +83,11 @@ preserved at commit `3b74c524ad473105b5bfa934855984fe98336eea`; see [PERF.md](PE
 Exact degree-two elimination and input-text-offset CSR were separately tested
 with sparse protected endpoints and full-width arithmetic. Both preserved
 answers but their preprocessing/traversal cost outweighed memory savings in
-local ARM64 trials. Production retains the simpler CSR baseline. See
+local ARM64 trials. Production retains CSR with packed adjacency. See
 [PERF.md](PERF.md) and the reproducible sources under
 `experiments/2026-10-30-score-tradeoffs/` at the repository root.
+
+Packed adjacency and sequential reverse construction are compared separately in
+`experiments/2026-10-30-compact-graphs/`. Sequential construction lowers its
+payload, but query scratch becomes the observed peak and serial traversal costs
+too much in the recorded full-scale local trials.

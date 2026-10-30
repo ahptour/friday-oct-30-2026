@@ -1,0 +1,464 @@
+{
+  "baseline": "00f82d78",
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "seed": 42,
+  "cpuset": "0-11",
+  "prewarm": "separate container before every run",
+  "measurement": "local process time and container cgroup memory.peak",
+  "summary": "exclude trial 0 per variant; median time, maximum memory",
+  "source_sha256": {
+    "a-base": "f27dccc4ce0b408ce8d16c01bcc2095c5a238de71678f998cb8c500b21eb7e4c",
+    "a-persistent": "8e6df7d50f85323f9082570f6dca46b465692024c136c06daa34aa5a54839a5f",
+    "d-base": "adace858482b5e25cb028a1341928f1d97cc41e384e63c473459ff23933019ab",
+    "d-tag10": "dde3d974587316368b84ae0d3a3381a81ff97d146ad63d2309dbe0f03bb102e6",
+    "d-escape11": "bba2b884808222fa1d1bfc8275ee48a09db141405d4d5664d545f7cfd54e0e6f",
+    "d-reverse": "dfbf7b2c0110ce8492790c73e69d34d0ce539c2a4d95eef82906d75d53cee50d"
+  },
+  "samples": {
+    "a-base": [
+      {
+        "trial": 0,
+        "seconds": 0.025228149,
+        "memory": 24092672,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 11026432,
+        "anon_after": 114688
+      },
+      {
+        "trial": 1,
+        "seconds": 0.026587988,
+        "memory": 23306240,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10166272,
+        "anon_after": 126976
+      },
+      {
+        "trial": 2,
+        "seconds": 0.025153856,
+        "memory": 22454272,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10166272,
+        "anon_after": 118784
+      },
+      {
+        "trial": 3,
+        "seconds": 0.023700226,
+        "memory": 21213184,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10166272,
+        "anon_after": 126976
+      },
+      {
+        "trial": 4,
+        "seconds": 0.025465775,
+        "memory": 20799488,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10166272,
+        "anon_after": 114688
+      },
+      {
+        "trial": 5,
+        "seconds": 0.024994731,
+        "memory": 21786624,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10166272,
+        "anon_after": 126976
+      },
+      {
+        "trial": 6,
+        "seconds": 0.022800389,
+        "memory": 19341312,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10166272,
+        "anon_after": 139264
+      },
+      {
+        "trial": 7,
+        "seconds": 0.027074365,
+        "memory": 19869696,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10166272,
+        "anon_after": 118784
+      },
+      {
+        "trial": 8,
+        "seconds": 0.027552659,
+        "memory": 23101440,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10166272,
+        "anon_after": 2310144
+      }
+    ],
+    "a-persistent": [
+      {
+        "trial": 0,
+        "seconds": 0.024218478,
+        "memory": 24240128,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10567680,
+        "anon_after": 114688
+      },
+      {
+        "trial": 1,
+        "seconds": 0.023058806,
+        "memory": 26230784,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10166272,
+        "anon_after": 126976
+      },
+      {
+        "trial": 2,
+        "seconds": 0.024114394,
+        "memory": 24104960,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 8867840,
+        "anon_after": 2359296
+      },
+      {
+        "trial": 3,
+        "seconds": 0.026035028,
+        "memory": 22786048,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10166272,
+        "anon_after": 2277376
+      },
+      {
+        "trial": 4,
+        "seconds": 0.026625863,
+        "memory": 22560768,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10166272,
+        "anon_after": 126976
+      },
+      {
+        "trial": 5,
+        "seconds": 0.02441777,
+        "memory": 21905408,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10166272,
+        "anon_after": 114688
+      },
+      {
+        "trial": 6,
+        "seconds": 0.026637155,
+        "memory": 23691264,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10166272,
+        "anon_after": 114688
+      },
+      {
+        "trial": 7,
+        "seconds": 0.027511367,
+        "memory": 23117824,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10166272,
+        "anon_after": 131072
+      },
+      {
+        "trial": 8,
+        "seconds": 0.024188686,
+        "memory": 23814144,
+        "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+        "file_after": 10166272,
+        "anon_after": 114688
+      }
+    ],
+    "d-base": [
+      {
+        "trial": 0,
+        "seconds": 0.1925439,
+        "memory": 135090176,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 413696,
+        "anon_after": 118784
+      },
+      {
+        "trial": 1,
+        "seconds": 0.172280356,
+        "memory": 134770688,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 131072
+      },
+      {
+        "trial": 2,
+        "seconds": 0.16860884,
+        "memory": 134909952,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 118784
+      },
+      {
+        "trial": 3,
+        "seconds": 0.177733213,
+        "memory": 135479296,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      },
+      {
+        "trial": 4,
+        "seconds": 0.180079306,
+        "memory": 137486336,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 126976
+      },
+      {
+        "trial": 5,
+        "seconds": 0.170910183,
+        "memory": 134955008,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 143360
+      },
+      {
+        "trial": 6,
+        "seconds": 0.173246986,
+        "memory": 135487488,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      },
+      {
+        "trial": 7,
+        "seconds": 0.175359161,
+        "memory": 135663616,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 118784
+      },
+      {
+        "trial": 8,
+        "seconds": 0.168603465,
+        "memory": 135102464,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      }
+    ],
+    "d-tag10": [
+      {
+        "trial": 0,
+        "seconds": 0.16328561,
+        "memory": 96210944,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 413696,
+        "anon_after": 131072
+      },
+      {
+        "trial": 1,
+        "seconds": 0.159551761,
+        "memory": 96280576,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      },
+      {
+        "trial": 2,
+        "seconds": 0.171206351,
+        "memory": 95678464,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 126976
+      },
+      {
+        "trial": 3,
+        "seconds": 0.179873972,
+        "memory": 95801344,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 126976
+      },
+      {
+        "trial": 4,
+        "seconds": 0.172487107,
+        "memory": 95879168,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      },
+      {
+        "trial": 5,
+        "seconds": 0.159621719,
+        "memory": 96493568,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      },
+      {
+        "trial": 6,
+        "seconds": 0.159743302,
+        "memory": 95899648,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      },
+      {
+        "trial": 7,
+        "seconds": 0.156102829,
+        "memory": 95793152,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      },
+      {
+        "trial": 8,
+        "seconds": 0.163341443,
+        "memory": 96366592,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      }
+    ],
+    "d-escape11": [
+      {
+        "trial": 0,
+        "seconds": 0.17170052,
+        "memory": 95735808,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 413696,
+        "anon_after": 131072
+      },
+      {
+        "trial": 1,
+        "seconds": 0.160572306,
+        "memory": 96051200,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 126976
+      },
+      {
+        "trial": 2,
+        "seconds": 0.179261427,
+        "memory": 95109120,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      },
+      {
+        "trial": 3,
+        "seconds": 0.215475456,
+        "memory": 96100352,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 126976
+      },
+      {
+        "trial": 4,
+        "seconds": 0.174708449,
+        "memory": 95076352,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 126976
+      },
+      {
+        "trial": 5,
+        "seconds": 0.16100485,
+        "memory": 95240192,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      },
+      {
+        "trial": 6,
+        "seconds": 0.168173922,
+        "memory": 94900224,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 118784
+      },
+      {
+        "trial": 7,
+        "seconds": 0.161843395,
+        "memory": 95072256,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      },
+      {
+        "trial": 8,
+        "seconds": 0.168770258,
+        "memory": 95309824,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      }
+    ],
+    "d-reverse": [
+      {
+        "trial": 0,
+        "seconds": 0.250782147,
+        "memory": 96518144,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 413696,
+        "anon_after": 114688
+      },
+      {
+        "trial": 1,
+        "seconds": 0.246626379,
+        "memory": 93802496,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      },
+      {
+        "trial": 2,
+        "seconds": 0.271897237,
+        "memory": 93630464,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      },
+      {
+        "trial": 3,
+        "seconds": 0.269148517,
+        "memory": 92835840,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 126976
+      },
+      {
+        "trial": 4,
+        "seconds": 0.250055811,
+        "memory": 92516352,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 114688
+      },
+      {
+        "trial": 5,
+        "seconds": 0.245023956,
+        "memory": 94916608,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 126976
+      },
+      {
+        "trial": 6,
+        "seconds": 0.256608839,
+        "memory": 95584256,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 131072
+      },
+      {
+        "trial": 7,
+        "seconds": 0.252328279,
+        "memory": 93573120,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 126976
+      },
+      {
+        "trial": 8,
+        "seconds": 0.239064848,
+        "memory": 93802496,
+        "sha256": "0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945",
+        "file_after": 12288,
+        "anon_after": 126976
+      }
+    ]
+  },
+  "input_pages_pinned_outside_measured_cgroup": true
+}
