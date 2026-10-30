@@ -130,12 +130,19 @@ impl Graph {
         // Construction leaves each node's end offset; restore start offsets.
         offsets.rotate_right(1);
         offsets[0] = 0;
-        Self { offsets, edges, wide: HashMap::new() }
+        Self {
+            offsets,
+            edges,
+            wide: HashMap::new(),
+        }
     }
     fn weight(&self, index: usize) -> u64 {
         let weight = self.edges[index].weight;
         if weight == u32::MAX {
-            self.wide.get(&(index as u32)).copied().unwrap_or(u64::from(weight))
+            self.wide
+                .get(&(index as u32))
+                .copied()
+                .unwrap_or(u64::from(weight))
         } else {
             u64::from(weight)
         }
@@ -164,7 +171,9 @@ impl Graph {
         let mut old = None;
         let mut existing = None;
         for i in self.indices(node as usize) {
-            if self.edges[i].node == removed { old = Some(i); }
+            if self.edges[i].node == removed {
+                old = Some(i);
+            }
             if shortcut.is_some_and(|(target, _)| self.edges[i].node == target) {
                 existing = Some(i);
             }
@@ -175,9 +184,15 @@ impl Graph {
         if let Some((target, weight)) = shortcut {
             let index = existing.unwrap_or(old);
             if existing.is_none() || weight < self.weight(index) {
-                self.edges[index] = Edge { node: target, weight: weight.min(u64::from(u32::MAX)) as u32 };
-                if weight > u64::from(u32::MAX) { self.wide.insert(index as u32, weight); }
-                else { self.wide.remove(&(index as u32)); }
+                self.edges[index] = Edge {
+                    node: target,
+                    weight: weight.min(u64::from(u32::MAX)) as u32,
+                };
+                if weight > u64::from(u32::MAX) {
+                    self.wide.insert(index as u32, weight);
+                } else {
+                    self.wide.remove(&(index as u32));
+                }
             }
         }
     }
@@ -191,7 +206,9 @@ impl Graph {
                 if self.edges[i].node != u32::MAX {
                     let weight = self.weight(i);
                     self.edges[write] = self.edges[i];
-                    if weight > u64::from(u32::MAX) { wide.insert(write as u32, weight); }
+                    if weight > u64::from(u32::MAX) {
+                        wide.insert(write as u32, weight);
+                    }
                     write += 1;
                 }
             }
@@ -213,54 +230,84 @@ fn contract(forward: &mut Graph, backward: &mut Graph, queries: &[(u32, u32)]) {
     backward.normalize();
     let n = forward.offsets.len() - 1;
     let mut state = vec![0u8; n]; // protected, queued, removed
-    for &(source, target) in queries { state[source as usize] = 1; state[target as usize] = 1; }
+    for &(source, target) in queries {
+        state[source as usize] = 1;
+        state[target as usize] = 1;
+    }
     fn eligible(node: usize, a: &Graph, b: &Graph) -> bool {
         let mut neighbors = [u32::MAX; 2];
         for graph in [a, b] {
             for edge in graph.neighbors(node) {
-                if edge.node == u32::MAX || neighbors.contains(&edge.node) { continue; }
-                if let Some(slot) = neighbors.iter_mut().find(|slot| **slot == u32::MAX) { *slot = edge.node; }
-                else { return false; }
+                if edge.node == u32::MAX || neighbors.contains(&edge.node) {
+                    continue;
+                }
+                if let Some(slot) = neighbors.iter_mut().find(|slot| **slot == u32::MAX) {
+                    *slot = edge.node;
+                } else {
+                    return false;
+                }
             }
         }
         true
     }
     let mut queue = VecDeque::new();
     for (node, flags) in state.iter_mut().enumerate() {
-        if *flags == 0 && eligible(node, forward, backward) { *flags = 2; queue.push_back(node as u32); }
+        if *flags == 0 && eligible(node, forward, backward) {
+            *flags = 2;
+            queue.push_back(node as u32);
+        }
     }
     let mut removed = 0;
     while let Some(node) = queue.pop_front() {
         state[node as usize] &= !2;
-        if state[node as usize] != 0 || !eligible(node as usize, forward, backward) { continue; }
+        if state[node as usize] != 0 || !eligible(node as usize, forward, backward) {
+            continue;
+        }
         let mut incoming = [(u32::MAX, 0u64); 2];
         let mut outgoing = incoming;
         for (graph, arcs) in [(&*backward, &mut incoming), (&*forward, &mut outgoing)] {
             let mut count = 0;
             for i in graph.indices(node as usize) {
                 if graph.edges[i].node != u32::MAX {
-                    arcs[count] = (graph.edges[i].node, graph.weight(i)); count += 1;
+                    arcs[count] = (graph.edges[i].node, graph.weight(i));
+                    count += 1;
                 }
             }
         }
-        for (graph, arcs, others) in [(&mut *forward, &incoming, &outgoing), (&mut *backward, &outgoing, &incoming)] {
+        for (graph, arcs, others) in [
+            (&mut *forward, &incoming, &outgoing),
+            (&mut *backward, &outgoing, &incoming),
+        ] {
             for &(neighbor, weight) in arcs {
-                if neighbor == u32::MAX { continue; }
-                let shortcut = others.iter().find(|&&(target, _)| target != u32::MAX && target != neighbor)
+                if neighbor == u32::MAX {
+                    continue;
+                }
+                let shortcut = others
+                    .iter()
+                    .find(|&&(target, _)| target != u32::MAX && target != neighbor)
                     .map(|&(target, other)| (target, weight.saturating_add(other)));
                 graph.replace(neighbor, node, shortcut);
             }
-            for i in graph.indices(node as usize) { graph.edges[i].node = u32::MAX; graph.wide.remove(&(i as u32)); }
+            for i in graph.indices(node as usize) {
+                graph.edges[i].node = u32::MAX;
+                graph.wide.remove(&(i as u32));
+            }
         }
         state[node as usize] = 4;
         removed += 1;
         for &(neighbor, _) in incoming.iter().chain(&outgoing) {
-            if neighbor != u32::MAX && state[neighbor as usize] == 0 && eligible(neighbor as usize, forward, backward) {
-                state[neighbor as usize] = 2; queue.push_back(neighbor);
+            if neighbor != u32::MAX
+                && state[neighbor as usize] == 0
+                && eligible(neighbor as usize, forward, backward)
+            {
+                state[neighbor as usize] = 2;
+                queue.push_back(neighbor);
             }
         }
     }
-    if std::env::var_os("D_DIAGNOSTIC").is_some() { eprintln!("removed={removed} nodes={n}"); }
+    if std::env::var_os("D_DIAGNOSTIC").is_some() {
+        eprintln!("removed={removed} nodes={n}");
+    }
     forward.compact();
     backward.compact();
 }
@@ -378,7 +425,10 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
     let mut cursor = 0;
     let mut queries = Vec::new();
     while cursor < input_queries.len() {
-        queries.push((number(&input_queries, &mut cursor), number(&input_queries, &mut cursor)));
+        queries.push((
+            number(&input_queries, &mut cursor),
+            number(&input_queries, &mut cursor),
+        ));
     }
     let file = File::open(data.join("graph.txt"))?;
     let size = file.metadata()?.len() as usize;
@@ -441,14 +491,24 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
         }
     });
     if std::env::var_os("D_DIAGNOSTIC").is_some() {
-        eprintln!("parse={:?} build={:?} contract_compact={:?} query={:?} edges={}", parsed_time-begin_time, built_time-parsed_time, contracted_time-built_time, contracted_time.elapsed(), forward.edges.len());
+        eprintln!(
+            "parse={:?} build={:?} contract_compact={:?} query={:?} edges={}",
+            parsed_time - begin_time,
+            built_time - parsed_time,
+            contracted_time - built_time,
+            contracted_time.elapsed(),
+            forward.edges.len()
+        );
     }
     fs::create_dir_all(out)?;
     let mut output = Vec::new();
     for answer in answers {
         let answer = answer.into_inner();
-        if answer == u64::MAX { writeln!(output, "-1").unwrap(); }
-        else { writeln!(output, "{answer}").unwrap(); }
+        if answer == u64::MAX {
+            writeln!(output, "-1").unwrap();
+        } else {
+            writeln!(output, "{answer}").unwrap();
+        }
     }
     fs::write(out.join("distances.txt"), output)
 }

@@ -203,8 +203,30 @@ u32 boundary and matching narrow/wide adjacency decoding. See versioned sources,
 reproduction tooling and raw samples in
 `experiments/2026-10-30-score-tradeoffs/` at the repository root.
 
+Both candidates also match the unchanged Python oracle on full seed 42:
+`0069046cc261b9825d90583ea3e6417d9728b8e7356b3fbde986f65bdeed7945`.
+
 The latest unchanged-baseline board repeat before this experiment was
 `run-8e2549a44195` at `e2db239`: all gates passed, T=0.357854 s,
 M=136,007,680 bytes, S=336, D=1, K=15.254961, points=59.170556.
 The best retained baseline remains the earlier 59.899443-point run. Single-run
 variation must not be mistaken for an algorithm change.
+
+
+### Revised compact-weight guard (also rejected)
+
+The revised handoff asks to skip an entire contraction if any directed shortcut
+would exceed `u32::MAX`. A separate candidate implements that check over all
+incoming/outgoing pairs **before changing either adjacency**, removes the wide
+side map entirely, and retains the eight-byte original edge representation.
+It preserves arbitrary full-width answers by leaving wide chains in the graph.
+This is separate from the exact wide-shortcut prototype above.
+
+Seven further alternating trials per variant prewarmed input immediately before
+every run and otherwise used the same Linux ARM64 sandbox and timer. Excluding
+the first trial, baseline median was 0.175365553 s with worst peak 137,347,072
+bytes; guarded contraction was 0.414561838 s and 135,262,208 bytes. Every output
+matched. Even without a source penalty this loses about 9.275 local machine
+points, so the revised guard does not rescue serial preprocessing. It passes
+all ten differential suites and full seeds 1 and 42. Keep D production unchanged.
+The guarded source and raw series are preserved with the other experiments.

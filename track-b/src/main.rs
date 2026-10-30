@@ -82,7 +82,8 @@ type Table<K, V> = HashMap<K, V, BuildHasherDefault<Fast>>;
 struct Query {
     terms: Vec<usize>,
     ops: Vec<u8>,
-    phrase: Option<usize>,
+    // Dense phrase ID; usize::MAX marks a Boolean query.
+    phrase: usize,
 }
 #[derive(Clone, Default)]
 struct Summary {
@@ -101,6 +102,8 @@ impl Summary {
 }
 struct Clause {
     query: usize,
+    // Dense Boolean ID, independent of original query/output order.
+    mask: usize,
     anchor: usize,
     terms: Vec<(usize, bool)>,
 }
@@ -133,10 +136,11 @@ fn anchors(
     }
     let mut anchors = vec![Vec::new(); dictionary.len()];
     let mut all = Vec::new();
-    for (id, query) in queries
+    for (mask, (id, query)) in queries
         .iter()
         .enumerate()
-        .filter(|(_, q)| q.phrase.is_none())
+        .filter(|(_, q)| q.phrase == usize::MAX)
+        .enumerate()
     {
         let mut clauses = vec![vec![(query.terms[0], true)]];
         for (&op, &term) in query.ops.iter().zip(&query.terms[1..]) {
@@ -171,6 +175,7 @@ fn anchors(
             anchors[anchor].push(all.len());
             all.push(Clause {
                 query: id,
+                mask,
                 anchor,
                 terms,
             });
@@ -232,18 +237,20 @@ fn flush(
             }
         }
         if value != 0 {
-            if query_bits[clause.query] == 0 {
-                touched.push(clause.query);
+            if query_bits[clause.mask] == 0 {
+                touched.push(id);
             }
-            query_bits[clause.query] |= value;
+            query_bits[clause.mask] |= value;
         }
     }
     for term in touched_terms.drain(..) {
         bits[term] = 0;
     }
-    for &query in touched.iter() {
-        let word = query_bits[query];
-        query_bits[query] = 0;
+    for &id in touched.iter() {
+        let clause = &clauses[id];
+        let query = clause.query;
+        let word = query_bits[clause.mask];
+        query_bits[clause.mask] = 0;
         let count = word.count_ones();
         if count <= 4 {
             let mut rest = word;
@@ -328,9 +335,10 @@ fn parse(
 ) -> Partial {
     let mut results = Partial::new(queries.len());
     let mut touched_terms = Vec::new();
-    let mut matched = vec![u32::MAX; queries.len()];
+    let phrases = queries.iter().filter(|q| q.phrase != usize::MAX).count();
+    let mut matched = vec![u32::MAX; phrases];
     let mut bits = vec![0u64; dictionary.len()];
-    let mut query_bits = vec![0u64; queries.len()];
+    let mut query_bits = vec![0u64; queries.len() - phrases];
     let mut touched = Vec::new();
     let mut base = 0;
     let mut candidates = Vec::new();
@@ -389,11 +397,12 @@ fn parse(
             }
         }
         for &(id, start) in &phrase_candidates {
-            let terms = &queries[id].terms;
-            if matched[id] != doc
+            let query = &queries[id];
+            let terms = &query.terms;
+            if matched[query.phrase] != doc
                 && tokens.get(start..start + terms.len()) == Some(terms.as_slice())
             {
-                matched[id] = doc;
+                matched[query.phrase] = doc;
                 results.add(id, doc);
             }
         }
@@ -430,7 +439,7 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
         let mut query = Query {
             terms: Vec::new(),
             ops: Vec::new(),
-            phrase: None,
+            phrase: usize::MAX,
         };
         for (i, word) in rest.split(|&b| b == b' ').enumerate() {
             if !phrase && i % 2 == 1 {
@@ -450,7 +459,7 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
             query.terms.push(id);
         }
         if phrase {
-            query.phrase = Some(phrases);
+            query.phrase = phrases;
             phrases += 1;
         }
         queries.push(query);
@@ -462,7 +471,7 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
     for (id, query) in queries
         .iter()
         .enumerate()
-        .filter(|(_, q)| q.phrase.is_some())
+        .filter(|(_, q)| q.phrase != usize::MAX)
     {
         let anchor = (0..query.terms.len())
             .min_by_key(|&i| frequencies[query.terms[i]])

@@ -26,7 +26,9 @@ For phrases, choose the sampled rarest term and record its occurrences in the
 current document's token-ID sequence. Compare the complete phrase around every
 candidate occurrence. Unknown tokens retain a sentinel position, repeated terms
 must match at distinct consecutive positions, and document boundaries cannot be
-crossed. Document stamps prevent repeated matches from counting twice.
+crossed. Document stamps prevent repeated matches from counting twice. Each
+worker sizes its stamps only for phrase queries and its Boolean masks only for
+Boolean queries; dense category IDs map back to the original result order.
 
 Each result records its exact count, 64-bit ID sum, and ten smallest IDs. Worker
 summaries merge in document order. On x86-64, SSE2 classifies and lowercases up to
@@ -52,10 +54,11 @@ cargo clippy --manifest-path track-b/Cargo.toml --offline --all-targets -- -D wa
 python3 check.py b --data data/b/full-seed1 --expected f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927
 ```
 
-The six differential tests cover the worked example, operator associativity,
+The seven differential suites cover the worked example, operator associativity,
 ASCII/Unicode distinctions, 32-byte tokens, phrase positions, repeated terms,
 duplicate queries, document boundaries, empty inputs, all six-term operator sequences, terms absent from the sampling
-prefix, and randomized documents spanning worker boundaries.
+prefix, randomized documents spanning worker boundaries, and category-only or
+interleaved queries with repeated clauses and output-order checks.
 
 For native development the binary accepts `--data DIRECTORY --out DIRECTORY`;
 defaults are `/data` and `/out`. See [PERF.md](PERF.md) for measurements.

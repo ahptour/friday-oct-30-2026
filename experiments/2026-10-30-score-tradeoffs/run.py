@@ -15,7 +15,7 @@ ROOT = HERE.parents[1]
 WORK = ROOT / '.out/score-tradeoffs'
 BASELINE = 'e2db23906110cb7dad9b86a79c5cf80a94a94334'
 VARIANTS = {'c': ['base', 'u8', 'half'], 'b': ['w12', 'w8', 'w6', 'w4'],
-            'd': ['base', 'contract', 'offset']}
+            'd': ['base', 'contract', 'guarded', 'offset']}
 HASHES = {'b': 'f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927',
           'c': 'd8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536',
           'd': 'a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e'}
@@ -43,7 +43,8 @@ def prepare():
             if track == 'b':
                 source = source.replace('.min(12)', f'.min({variant[1:]})')
             if track == 'd' and variant != 'base':
-                filename = 'd-contraction.rs' if variant == 'contract' else 'd-text-offsets.rs'
+                filename = {'contract': 'd-contraction.rs', 'guarded': 'd-guarded-contraction.rs',
+                            'offset': 'd-text-offsets.rs'}[variant]
                 source = (HERE / filename).read_text()
             (context / 'src/main.rs').write_text(source)
 
@@ -74,7 +75,7 @@ def build():
     timer = '''use std::{process::Command,time::Instant};
 fn main() {
     let start=Instant::now();
-    let status=Command::new("/app/solution").status().unwrap();
+    let status=Command::new("/app/solution").args(std::env::args_os().skip(1)).status().unwrap();
     assert!(status.success());
     println!("{} {}",start.elapsed().as_secs_f64(),std::fs::read_to_string("/sys/fs/cgroup/memory.peak").unwrap().trim());
 }
@@ -104,6 +105,10 @@ def benchmark(trials):
                        '--user', '65534:65534', '--cpuset-cpus=0-11', '-v', f'{data}:/data:ro',
                        '-v', f'{out}:/out:rw', '-v', f'{WORK}/timer:/timer:ro',
                        '--entrypoint', '/timer', f'speeddemon-next/{name}']
+                subprocess.run(['docker', 'run', '--rm', '--network=none', '-v',
+                                f'{data}:/data:ro', '--entrypoint', '/bin/sh',
+                                f'speeddemon-next/{name}', '-c', 'cat /data/* >/dev/null'],
+                               check=True)
                 result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                 seconds, memory = result.stdout.split()
                 files = list(out.iterdir())
@@ -124,7 +129,7 @@ def benchmark(trials):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['prepare', 'test', 'build', 'bench'])
-    parser.add_argument('--variant', choices=['contract', 'offset'], default='contract')
+    parser.add_argument('--variant', choices=['contract', 'guarded', 'offset'], default='contract')
     parser.add_argument('--trials', type=int, default=7)
     args = parser.parse_args()
     if args.action == 'prepare':

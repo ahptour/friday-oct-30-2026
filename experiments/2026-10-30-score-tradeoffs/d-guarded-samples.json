@@ -1,0 +1,90 @@
+{
+  "d-base": [
+    {
+      "trial": 0,
+      "seconds": 0.175714303,
+      "memory": 135299072,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 1,
+      "seconds": 0.17184435,
+      "memory": 134684672,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 2,
+      "seconds": 0.184564913,
+      "memory": 134696960,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 3,
+      "seconds": 0.174668221,
+      "memory": 134889472,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 4,
+      "seconds": 0.173432682,
+      "memory": 135032832,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 5,
+      "seconds": 0.188802406,
+      "memory": 135979008,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 6,
+      "seconds": 0.176062885,
+      "memory": 137347072,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    }
+  ],
+  "d-guarded": [
+    {
+      "trial": 0,
+      "seconds": 0.422195534,
+      "memory": 135204864,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 1,
+      "seconds": 0.405556728,
+      "memory": 134946816,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 2,
+      "seconds": 0.42467953,
+      "memory": 135184384,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 3,
+      "seconds": 0.411988092,
+      "memory": 134750208,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 4,
+      "seconds": 0.417135584,
+      "memory": 135262208,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 5,
+      "seconds": 0.408709555,
+      "memory": 134864896,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 6,
+      "seconds": 0.467663002,
+      "memory": 135127040,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    }
+  ]
+}

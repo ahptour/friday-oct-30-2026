@@ -79,11 +79,13 @@ colliding names, and exact overflow counting. Formatting and Clippy with warning
 denied pass. Offline ARM64 Docker and the board sandbox match the published
 full-seed-1 output. Full seed 42 also matches the unchanged Python reference:
 `54ed4d6bd196c17dda213cfcc7b79ec6732f06d80b1b3cb444e7468dd438e517`.
+Offline AMD64 builds also match full seeds 1 and 42 under the board sandbox.
+Emulated execution is used only for correctness.
 Raw samples and reproducible candidates are in
 `experiments/2026-10-30-score-tradeoffs/` at the repository root.
 
 The immediately preceding unchanged-code board repeat was `run-c342f5384aee`
 at `e2db239`: T=0.078485 s, M=17,092,608 bytes, S=365, D=1,
 K=20.873513, machine points=65.979778; all gates passed. That repeat is not
-an optimization step. The new candidate's Intel result will be recorded after
-its submitted commit completes.
+an optimization step. The candidate has not been submitted for a new Intel
+measurement; committing and submission remain with the user.

@@ -80,3 +80,55 @@ local selection, not the possibility of an Intel-specific win. An Intel worker
 sweep and query-category-sized scratch arrays remain useful next experiments.
 Six unchanged B differential suites pass. Reproduction and raw samples are in
 `experiments/2026-10-30-score-tradeoffs/` at the repository root.
+
+
+## Step 3: scratch arrays sized by query category (2026-10-30)
+
+Retain twelve workers. Phrase stamps now contain only phrase queries; Boolean
+masks contain only Boolean queries. Each clause carries a dense Boolean mask ID
+alongside its original result ID, so interleaved queries and multiple clauses
+still produce exactly one ordered answer per input query. Dense phrase IDs use
+`usize::MAX` for Boolean queries, reducing `Query` by one word compared with
+`Option<usize>`. Full token equality and all matching semantics remain intact.
+
+The original twelve-worker payload saving from narrower arrays is 3.312 MB for
+the published query mix, plus smaller shared query records, minus additional
+clause mask IDs. Measure total peak rather than reporting this payload as peak.
+
+An initial nine-trial three-way series prewarmed once before the series. One
+phrase-only run charged 323,395,584 bytes, far beyond the solver's scratch
+allocation; this is consistent with input pages being faulted into its cgroup.
+Do not discard that row as a favorable outlier. Keep all initial samples and
+repeat the comparison with input prewarming immediately before **every** measured
+run, matching the official procedure more closely. No competing builds or data
+generation ran during either timed series.
+
+| Variant | Warm median (s) | Worst warm peak (bytes) |
+|---|---:|---:|
+| Baseline, twelve workers | 0.253522720 | 69,140,480 |
+| Category-sized arrays, twelve workers | 0.256140674 | 65,593,344 |
+
+These nine alternating trials per variant are Linux ARM64 diagnostics; the
+first trial is excluded from each warm summary and every hash matches full
+seed 1. The time/memory delta is +0.117 local machine points before source cost.
+Canonical local Rust formatting adds seven nonblank, noncomment lines; using
+541 -> approximately 548 scored lines leaves roughly +0.075 points. This is an
+estimate, not official S or an Intel score. Retain the clear, smaller exact
+state layout, but do not describe the small estimated score gain as established
+on Intel. No worker-count change or PGO is included.
+
+Seven differential suites include phrase-only, Boolean-only, interleaved and
+reversed query orders, repeated phrase hits, unsatisfiable clauses, multiple
+Boolean clauses and transitions across 64-document blocks. Formatting, Clippy
+with warnings denied, and the offline ARM64 sandbox/full public hash pass.
+Reproduction and both complete sample series are in
+`experiments/2026-10-30-score-tradeoffs/` at the repository root. The user will
+handle committing and board submission; no new Intel result is claimed.
+
+
+The unchanged Python oracle also matches sample seed 42
+(`8afc643bfca75356178541927d54654067b8f4c288ec9c16862e20d8d459cb63`)
+and full seed 42
+(`f853a72cd18c2535183170a22482f363a251ac88fec1ed419791e1572dbfdffd`).
+The offline AMD64 build matches full seeds 1 and 42 under the board sandbox;
+emulated runs validate correctness and are not used for timing decisions.

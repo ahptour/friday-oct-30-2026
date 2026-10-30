@@ -81,6 +81,19 @@ class TrackBTest(unittest.TestCase):
         self.check([], ['BOOL absent', 'PHRASE "a b"'])
         self.check(['a b', ''], [])
 
+    def test_query_categories_and_interleaved_output_order(self):
+        docs = ['a b a b' if i % 3 == 0 else 'a a' if i % 3 == 1 else 'b'
+                for i in range(195)]
+        boolean = ['BOOL a NOT a', 'BOOL a OR b', 'BOOL b NOT a',
+                   'BOOL absent', 'BOOL a OR b OR a']
+        phrases = ['PHRASE "a b"', 'PHRASE "a a"', 'PHRASE "b a"',
+                   'PHRASE "a b"', 'PHRASE "absent a"']
+        self.check(docs, boolean)
+        self.check(docs, phrases)
+        mixed = [query for pair in zip(phrases, boolean) for query in pair]
+        self.check(docs, mixed)
+        self.check(docs, mixed[::-1])
+
     def test_randomized_sparse_dense_sets_and_parallel_chunks(self):
         for seed in [2, 19]:
             with self.subTest(seed=seed):
