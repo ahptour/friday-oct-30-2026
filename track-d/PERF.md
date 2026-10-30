@@ -428,3 +428,29 @@ tests, benchmarks or Docker runs were performed, following the user's request.
 Official build/correctness/performance results remain pending. Complete baseline
 and candidate sources are in `experiments/2026-10-30-bold/d-baseline.rs` and
 `experiments/2026-10-30-bold/d-candidate.rs` outside the production track.
+
+
+### Completed bold Intel result
+
+`run-93fef43aeac2` at `f20c4a1` passed every check, build, correctness,
+timeout and sandbox gate; static axes are measured. The full official feed
+generated 2026-10-30 23:55:20 UTC is archived in
+[intel-f20c4a1.json](../experiments/2026-10-30-bold/intel-f20c4a1.json).
+
+| T (ms) | Peak bytes | S | D | Machine points |
+|---:|---:|---:|---:|---:|
+| 378.197 | 99,250,176 | 437 | 1 | 59.082506 |
+
+Score delta against the immediate d900c19 repeat: **-2.282040**.
+Against the previous historical best: **-2.886951**.
+
+Reject and restore the complete prior selected D from d900c19. Runtime
+rises from the immediate repeat's 327.403 to 378.197 ms, peak rises from
+97,128,448 to 99,250,176 bytes, and source grows from S361 to S437. At the measured
+memory/source it needs about 289.895 ms to beat the historical best. Generation
+tables plus radix heaps did not deliver an end-to-end improvement; the combined
+experiment does not identify which component caused the loss.
+
+All complete candidate and baseline sources remain under
+`experiments/2026-10-30-bold/`. No local builds, Docker, solver runs, tests or
+benchmarks were used; the official Intel run supplied execution evidence.

@@ -370,3 +370,29 @@ Complete baseline/candidate source files are in
 source review completed. Per user instruction, no local compilation, Docker,
 solver execution, tests or runtime benchmarks were performed. Official Intel
 build/correctness/performance gates remain pending.
+
+
+### Completed bold Intel result
+
+`run-7fb6f9c03366` at `f20c4a1` passed every check, build, correctness,
+timeout and sandbox gate; static axes are measured. The full official feed
+generated 2026-10-30 23:55:20 UTC is archived in
+[intel-f20c4a1.json](../experiments/2026-10-30-bold/intel-f20c4a1.json).
+
+| T (ms) | Peak bytes | S | D | Machine points |
+|---:|---:|---:|---:|---:|
+| 54.888 | 13,746,176 | 540 | 1 | 69.533017 |
+
+Score delta against the immediate d900c19 repeat: **+0.104205**.
+Against the previous historical best: **-0.178493**.
+
+Retain provisionally for one unchanged repeat in the B/D restoration
+push. It gains 0.104205 points against the immediate selected repeat but loses
+0.178493 against the historical best. That best comparison combines 0.60% less
+runtime, 7.98% more peak, and S540 versus S555. The result is close and does not
+establish superiority. The next official run repeats the same C source; do not
+mark it a stable win based on faster runtime or lower source count alone.
+
+All complete candidate and baseline sources remain under
+`experiments/2026-10-30-bold/`. No local builds, Docker, solver runs, tests or
+benchmarks were used; the official Intel run supplied execution evidence.

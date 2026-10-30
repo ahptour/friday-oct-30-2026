@@ -352,3 +352,30 @@ counts, independent block ownership, page alignment, captures before discard,
 empty hours, buffer ownership and write-error propagation. No local compilation,
 solver execution, tests or Docker runs were performed, per user instruction.
 Formatting is checked; official build/correctness/performance are pending.
+
+
+### Completed bold Intel result
+
+`run-d942851a76aa` at `f20c4a1` passed every check, build, correctness,
+timeout and sandbox gate; static axes are measured. The full official feed
+generated 2026-10-30 23:55:20 UTC is archived in
+[intel-f20c4a1.json](../experiments/2026-10-30-bold/intel-f20c4a1.json).
+
+| T (ms) | Peak bytes | S | D | Machine points |
+|---:|---:|---:|---:|---:|
+| 31.596 | 23,285,760 | 488 | 1 | 78.010364 |
+
+Score delta against the immediate d900c19 repeat: **+2.208416**.
+Against the previous historical best: **+0.720043**.
+
+Keep the new compact-record architecture. Runtime is 23.20% below the
+preceding historical best (41.140 ms), while peak is 21.94% higher and source
+grows from S329 to S488. The complete score still gains 0.720043 points:
++2.865805 runtime -0.861582 memory -1.284179 source. At the measured memory and
+source, break-even was 33.762 ms; 31.596 ms clears that budget. This validates
+the combined candidate on public Intel input, not any single mechanism in it
+or final holdout behavior. The next selected-combination push repeats this A.
+
+All complete candidate and baseline sources remain under
+`experiments/2026-10-30-bold/`. No local builds, Docker, solver runs, tests or
+benchmarks were used; the official Intel run supplied execution evidence.

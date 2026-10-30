@@ -81,8 +81,9 @@ type Table<K, V> = HashMap<K, V, BuildHasherDefault<Fast>>;
 
 struct Query {
     terms: Vec<usize>,
-    clauses: Vec<Vec<(usize, bool)>>,
-    phrase: bool,
+    ops: Vec<u8>,
+    // Dense phrase ID; usize::MAX marks a Boolean query.
+    phrase: usize,
 }
 #[derive(Clone, Default)]
 struct Summary {
@@ -99,6 +100,90 @@ impl Summary {
         output.push(b'\n');
     }
 }
+struct Clause {
+    query: usize,
+    // Dense Boolean ID, independent of original query/output order.
+    mask: usize,
+    anchor: usize,
+    terms: Vec<(usize, bool)>,
+}
+fn anchors(
+    input: &[u8],
+    dictionary: &Table<[u8; 32], usize>,
+    queries: &[Query],
+) -> (Vec<Vec<usize>>, Vec<Clause>, Vec<u32>) {
+    let mut frequencies = vec![0u32; dictionary.len()];
+    let mut seen = vec![u32::MAX; dictionary.len()];
+    for (doc, line) in input.split(|&b| b == b'\n').take(1000).enumerate() {
+        let Some(tab) = line.iter().position(|&b| b == b'\t') else {
+            continue;
+        };
+        for word in line[tab + 1..]
+            .split(|b| !b.is_ascii_alphanumeric())
+            .filter(|w| !w.is_empty())
+        {
+            let mut key = [0; 32];
+            for (dst, &byte) in key.iter_mut().zip(word) {
+                *dst = byte.to_ascii_lowercase();
+            }
+            if let Some(&term) = dictionary.get(&key)
+                && seen[term] != doc as u32
+            {
+                seen[term] = doc as u32;
+                frequencies[term] += 1;
+            }
+        }
+    }
+    let mut anchors = vec![Vec::new(); dictionary.len()];
+    let mut all = Vec::new();
+    for (mask, (id, query)) in queries
+        .iter()
+        .enumerate()
+        .filter(|(_, q)| q.phrase == usize::MAX)
+        .enumerate()
+    {
+        let mut clauses = vec![vec![(query.terms[0], true)]];
+        for (&op, &term) in query.ops.iter().zip(&query.terms[1..]) {
+            if op == b'O' {
+                clauses.push(vec![(term, true)]);
+            } else {
+                for clause in &mut clauses {
+                    clause.push((term, op == b'A'));
+                }
+            }
+        }
+        for mut terms in clauses {
+            terms.sort_unstable();
+            terms.dedup();
+            if terms.windows(2).any(|pair| pair[0].0 == pair[1].0) {
+                continue;
+            }
+            let anchor = terms
+                .iter()
+                .filter(|(_, positive)| *positive)
+                .min_by_key(|(term, _)| frequencies[*term])
+                .unwrap()
+                .0;
+            terms.retain(|&(term, positive)| term != anchor || !positive);
+            terms.sort_unstable_by_key(|&(term, positive)| {
+                if positive {
+                    frequencies[term]
+                } else {
+                    1000 - frequencies[term]
+                }
+            });
+            anchors[anchor].push(all.len());
+            all.push(Clause {
+                query: id,
+                mask,
+                anchor,
+                terms,
+            });
+        }
+    }
+    (anchors, all, frequencies)
+}
+
 #[derive(Clone, Default)]
 struct Compact {
     sum: u64,
@@ -129,6 +214,75 @@ impl Partial {
         stat.sum += u64::from(doc);
     }
 }
+#[allow(clippy::too_many_arguments)]
+fn flush(
+    base: u32,
+    bits: &mut [u64],
+    touched_terms: &mut Vec<usize>,
+    candidates: &[usize],
+    clauses: &[Clause],
+    query_bits: &mut [u64],
+    touched: &mut Vec<usize>,
+    results: &mut Partial,
+) {
+    touched.clear();
+    for &id in candidates {
+        let clause = &clauses[id];
+        let mut value = bits[clause.anchor];
+        for &(term, positive) in &clause.terms {
+            let mask = bits[term];
+            value &= if positive { mask } else { !mask };
+            if value == 0 {
+                break;
+            }
+        }
+        if value != 0 {
+            if query_bits[clause.mask] == 0 {
+                touched.push(id);
+            }
+            query_bits[clause.mask] |= value;
+        }
+    }
+    for term in touched_terms.drain(..) {
+        bits[term] = 0;
+    }
+    for &id in touched.iter() {
+        let clause = &clauses[id];
+        let query = clause.query;
+        let word = query_bits[clause.mask];
+        query_bits[clause.mask] = 0;
+        let count = word.count_ones();
+        if count <= 4 {
+            let mut rest = word;
+            while rest != 0 {
+                results.add(query, base + rest.trailing_zeros());
+                rest &= rest - 1;
+            }
+        } else {
+            let stat = &mut results.stats[query];
+            if stat.count == 0 {
+                stat.first = results.first.len() as u32;
+                results.first.push([0; 10]);
+            }
+            let mut rest = word;
+            let mut i = stat.count as usize;
+            while i < 10 && rest != 0 {
+                results.first[stat.first as usize][i] = base + rest.trailing_zeros();
+                rest &= rest - 1;
+                i += 1;
+            }
+            stat.count += count;
+            stat.sum += u64::from(base) * u64::from(count)
+                + u64::from((word & 0xaaaaaaaaaaaaaaaa).count_ones())
+                + 2 * u64::from((word & 0xcccccccccccccccc).count_ones())
+                + 4 * u64::from((word & 0xf0f0f0f0f0f0f0f0).count_ones())
+                + 8 * u64::from((word & 0xff00ff00ff00ff00).count_ones())
+                + 16 * u64::from((word & 0xffff0000ffff0000).count_ones())
+                + 32 * u64::from((word & 0xffffffff00000000).count_ones());
+        }
+    }
+}
+
 fn read_token(input: &[u8], pos: &mut usize, token: &mut [u8; 32]) -> usize {
     let mut length = 0;
     #[cfg(target_arch = "x86_64")]
@@ -171,290 +325,107 @@ fn read_token(input: &[u8], pos: &mut usize, token: &mut [u8; 32]) -> usize {
     }
     length
 }
-// Each local posting promotes when its document vector exceeds bitmap payload.
-// Dense words use u32 so both representations share one allocation type.
-#[derive(Default)]
-struct Posting {
-    data: Vec<u32>,
-    count: u32,
-    dense: bool,
-}
-impl Posting {
-    fn insert(&mut self, doc: u32, bitmap_words: usize) {
-        self.count += 1;
-        if self.dense {
-            self.data[doc as usize / 32] |= 1 << (doc % 32);
-        } else {
-            self.data.push(doc);
-            if self.data.len() > bitmap_words {
-                let mut bits = vec![0; bitmap_words];
-                for &id in &self.data {
-                    bits[id as usize / 32] |= 1 << (id % 32);
-                }
-                self.data = bits;
-                self.dense = true;
-            }
-        }
-    }
-    fn contains(&self, doc: u32) -> bool {
-        if self.dense {
-            self.data[doc as usize / 32] & (1 << (doc % 32)) != 0
-        } else {
-            self.data.binary_search(&doc).is_ok()
-        }
-    }
-    fn word(&self, block: usize, cursor: &mut usize) -> u64 {
-        if self.dense {
-            return u64::from(self.data[block * 2])
-                | (u64::from(self.data.get(block * 2 + 1).copied().unwrap_or(0)) << 32);
-        }
-        let start = (block * 64) as u32;
-        while *cursor < self.data.len() && self.data[*cursor] < start {
-            *cursor += 1;
-        }
-        let mut bits = 0;
-        while *cursor < self.data.len() && self.data[*cursor] - start < 64 {
-            bits |= 1 << (self.data[*cursor] % 64);
-            *cursor += 1;
-        }
-        bits
-    }
-    fn visit(&self, mut f: impl FnMut(u32)) {
-        if self.dense {
-            for (word, &bits) in self.data.iter().enumerate() {
-                let mut bits = bits;
-                while bits != 0 {
-                    f((word * 32) as u32 + bits.trailing_zeros());
-                    bits &= bits - 1;
-                }
-            }
-        } else {
-            for &doc in &self.data {
-                f(doc);
-            }
-        }
-    }
-}
-fn clauses(terms: &[usize], ops: &[u8]) -> Vec<Vec<(usize, bool)>> {
-    let mut result = vec![vec![(terms[0], true)]];
-    for (&op, &term) in ops.iter().zip(&terms[1..]) {
-        if op == b'O' {
-            result.push(vec![(term, true)]);
-        } else {
-            for clause in &mut result {
-                clause.push((term, op == b'A'));
-            }
-        }
-    }
-    for clause in &mut result {
-        clause.sort_unstable();
-        clause.dedup();
-    }
-    result.retain(|clause| !clause.windows(2).any(|pair| pair[0].0 == pair[1].0));
-    result
-}
-fn newline(input: &[u8], mut pos: usize) -> usize {
-    while pos + 8 <= input.len() {
-        let word = u64::from_le_bytes(input[pos..pos + 8].try_into().unwrap()) ^ 0x0a0a0a0a0a0a0a0a;
-        let mask = word.wrapping_sub(0x0101010101010101) & !word & 0x8080808080808080;
-        if mask != 0 {
-            return pos + mask.trailing_zeros() as usize / 8;
-        }
-        pos += 8;
-    }
-    while pos < input.len() && input[pos] != b'\n' {
-        pos += 1;
-    }
-    pos
-}
-fn phrase_matches(input: &[u8], terms: &[usize], keys: &[[u8; 32]], failure: &[usize]) -> bool {
-    let mut pos = 0;
-    let mut matched = 0;
-    let mut token = [0; 32];
-    while pos < input.len() {
-        if !input[pos].is_ascii_alphanumeric() {
-            pos += 1;
-            continue;
-        }
-        token.fill(0);
-        read_token(input, &mut pos, &mut token);
-        while matched > 0 && token != keys[terms[matched]] {
-            matched = failure[matched - 1];
-        }
-        if token == keys[terms[matched]] {
-            matched += 1;
-            if matched == terms.len() {
-                return true;
-            }
-        }
-    }
-    false
-}
-fn union_word(word: usize, value: u64, bits: &mut [u64], touched: &mut Vec<usize>) {
-    if value != 0 {
-        if bits[word] == 0 {
-            touched.push(word);
-        }
-        bits[word] |= value;
-    }
-}
-fn summarize_word(results: &mut Partial, query: usize, base: u32, word: u64) {
-    let count = word.count_ones();
-    let stat = &mut results.stats[query];
-    if stat.count == 0 {
-        stat.first = results.first.len() as u32;
-        results.first.push([0; 10]);
-    }
-    let mut rest = word;
-    let mut i = stat.count as usize;
-    while i < 10 && rest != 0 {
-        results.first[stat.first as usize][i] = base + rest.trailing_zeros();
-        rest &= rest - 1;
-        i += 1;
-    }
-    stat.count += count;
-    stat.sum += u64::from(base) * u64::from(count)
-        + u64::from((word & 0xaaaaaaaaaaaaaaaa).count_ones())
-        + 2 * u64::from((word & 0xcccccccccccccccc).count_ones())
-        + 4 * u64::from((word & 0xf0f0f0f0f0f0f0f0).count_ones())
-        + 8 * u64::from((word & 0xff00ff00ff00ff00).count_ones())
-        + 16 * u64::from((word & 0xffff0000ffff0000).count_ones())
-        + 32 * u64::from((word & 0xffffffff00000000).count_ones());
-}
 fn parse(
     input: &[u8],
     dictionary: &Table<[u8; 32], usize>,
-    keys: &[[u8; 32]],
+    anchors: &[Vec<usize>],
     queries: &[Query],
+    clauses: &[Clause],
+    checks: &[Vec<(usize, usize)>],
 ) -> Partial {
     let mut results = Partial::new(queries.len());
-    if input.is_empty() || queries.is_empty() {
-        return results;
-    }
-    // Frozen docs.txt section 2.1 guarantees dense ascending IDs. Each
-    // line-aligned chunk therefore maps local document indices to base + index.
-    let mut ranges = Vec::new();
-    let mut pos = 0;
+    let mut touched_terms = Vec::new();
+    let phrases = queries.iter().filter(|q| q.phrase != usize::MAX).count();
+    let mut matched = vec![u32::MAX; phrases];
+    let mut bits = vec![0u64; dictionary.len()];
+    let mut query_bits = vec![0u64; queries.len() - phrases];
+    let mut touched = Vec::new();
     let mut base = 0;
+    let mut candidates = Vec::new();
+
+    let mut tokens = Vec::new();
+    let mut phrase_candidates = Vec::new();
+    let mut pos = 0;
+    let mut token = [0u8; 32];
     while pos < input.len() {
-        let mut doc = 0;
+        let mut doc = 0u32;
         while input[pos] != b'\t' {
             doc = doc * 10 + u32::from(input[pos] - b'0');
             pos += 1;
         }
-        if ranges.is_empty() {
-            base = doc;
+        pos += 1;
+        let block = doc & !63;
+        if block != base {
+            flush(
+                base,
+                &mut bits,
+                &mut touched_terms,
+                &candidates,
+                clauses,
+                &mut query_bits,
+                &mut touched,
+                &mut results,
+            );
+            candidates.clear();
+            base = block;
         }
-        let start = pos + 1;
-        let end = newline(input, start);
-        ranges.push((start, end));
-        pos = end + 1;
-    }
-    let mut postings: Vec<_> = std::iter::repeat_with(Posting::default)
-        .take(dictionary.len())
-        .collect();
-    let mut seen = vec![u32::MAX; dictionary.len()];
-    let bitmap_words = ranges.len().div_ceil(32);
-    let mut token = [0; 32];
-    for (doc, &(start, end)) in ranges.iter().enumerate() {
-        let text = &input[start..end];
-        let mut pos = 0;
-        while pos < text.len() {
-            if !text[pos].is_ascii_alphanumeric() {
+        tokens.clear();
+        phrase_candidates.clear();
+        while input[pos] != b'\n' {
+            token.fill(0);
+            let len = read_token(input, &mut pos, &mut token);
+            if len == 0 {
                 pos += 1;
                 continue;
             }
-            token.fill(0);
-            read_token(text, &mut pos, &mut token);
-            if let Some(&term) = dictionary.get(&token)
-                && seen[term] != doc as u32
+            let term = dictionary.get(&token).copied().unwrap_or(usize::MAX);
+            tokens.push(term);
+            if term != usize::MAX {
+                if bits[term] == 0 {
+                    touched_terms.push(term);
+                    candidates.extend_from_slice(&anchors[term]);
+                }
+                bits[term] |= 1u64 << (doc - base);
+                for &(id, anchor) in &checks[term] {
+                    if tokens.len() > anchor {
+                        phrase_candidates.push((id, tokens.len() - 1 - anchor));
+                    }
+                }
+            }
+            if input[pos] != b'\n' {
+                pos += 1;
+            }
+        }
+        for &(id, start) in &phrase_candidates {
+            let query = &queries[id];
+            let terms = &query.terms;
+            if matched[query.phrase] != doc
+                && tokens.get(start..start + terms.len()) == Some(terms.as_slice())
             {
-                seen[term] = doc as u32;
-                postings[term].insert(doc as u32, bitmap_words);
+                matched[query.phrase] = doc;
+                results.add(id, doc);
             }
         }
+        pos += 1;
     }
-    drop(seen);
-    let mut bits = vec![0u64; ranges.len().div_ceil(64)];
-    let mut touched = Vec::new();
-    for (id, query) in queries.iter().enumerate() {
-        if query.phrase {
-            let anchor = *query
-                .terms
-                .iter()
-                .min_by_key(|&&term| postings[term].count)
-                .unwrap();
-            let mut failure = [0; 8];
-            for i in 1..query.terms.len() {
-                let mut j = failure[i - 1];
-                while j > 0 && query.terms[i] != query.terms[j] {
-                    j = failure[j - 1];
-                }
-                if query.terms[i] == query.terms[j] {
-                    j += 1;
-                }
-                failure[i] = j;
-            }
-            postings[anchor].visit(|doc| {
-                if query.terms.iter().all(|&term| postings[term].contains(doc)) {
-                    let (start, end) = ranges[doc as usize];
-                    if phrase_matches(&input[start..end], &query.terms, keys, &failure) {
-                        results.add(id, base + doc);
-                    }
-                }
-            });
-            continue;
-        }
-        for clause in &query.clauses {
-            let anchor = clause
-                .iter()
-                .filter(|(_, positive)| *positive)
-                .min_by_key(|(term, _)| postings[*term].count)
-                .unwrap()
-                .0;
-            let posting = &postings[anchor];
-            if posting.count == 0 {
-                continue;
-            }
-            if posting.dense {
-                let mut cursors = [0; 6];
-                let mut anchor_cursor = 0;
-                for word in 0..bits.len() {
-                    let mut value = posting.word(word, &mut anchor_cursor);
-                    for (i, &(term, positive)) in clause.iter().enumerate() {
-                        if value == 0 {
-                            break;
-                        }
-                        if term != anchor {
-                            let mask = postings[term].word(word, &mut cursors[i]);
-                            value &= if positive { mask } else { !mask };
-                        }
-                    }
-                    union_word(word, value, &mut bits, &mut touched);
-                }
-            } else {
-                for &doc in &posting.data {
-                    if clause.iter().all(|&(term, positive)| {
-                        term == anchor || postings[term].contains(doc) == positive
-                    }) {
-                        union_word(doc as usize / 64, 1 << (doc % 64), &mut bits, &mut touched);
-                    }
-                }
-            }
-        }
-        touched.sort_unstable();
-        for word in touched.drain(..) {
-            summarize_word(&mut results, id, base + (word * 64) as u32, bits[word]);
-            bits[word] = 0;
-        }
-    }
+    flush(
+        base,
+        &mut bits,
+        &mut touched_terms,
+        &candidates,
+        clauses,
+        &mut query_bits,
+        &mut touched,
+        &mut results,
+    );
     results
 }
+
 fn solve(data: &Path, out: &Path) -> io::Result<()> {
     let query_text = fs::read(data.join("queries.txt"))?;
     let mut dictionary: Table<[u8; 32], usize> = Table::default();
-    let mut keys = Vec::new();
     let mut queries = Vec::new();
+    let mut phrases = 0;
     for line in query_text
         .split(|&b| b == b'\n')
         .filter(|line| !line.is_empty())
@@ -465,11 +436,14 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
         } else {
             &line[5..]
         };
-        let mut terms = Vec::new();
-        let mut ops = Vec::new();
+        let mut query = Query {
+            terms: Vec::new(),
+            ops: Vec::new(),
+            phrase: usize::MAX,
+        };
         for (i, word) in rest.split(|&b| b == b' ').enumerate() {
             if !phrase && i % 2 == 1 {
-                ops.push(word[0]);
+                query.ops.push(word[0]);
                 continue;
             }
             let mut key = [0; 32];
@@ -477,27 +451,33 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
             let id = match dictionary.get(&key) {
                 Some(&id) => id,
                 None => {
-                    let id = keys.len();
-                    keys.push(key);
+                    let id = dictionary.len();
                     dictionary.insert(key, id);
                     id
                 }
             };
-            terms.push(id);
+            query.terms.push(id);
         }
-        let clauses = if phrase {
-            Vec::new()
-        } else {
-            clauses(&terms, &ops)
-        };
-        queries.push(Query {
-            terms,
-            clauses,
-            phrase,
-        });
+        if phrase {
+            query.phrase = phrases;
+            phrases += 1;
+        }
+        queries.push(query);
     }
     let mapping = Mapping::open(&data.join("docs.txt"))?;
     let input = mapping.bytes();
+    let (anchors, clauses, frequencies) = anchors(input, &dictionary, &queries);
+    let mut checks = vec![Vec::new(); dictionary.len()];
+    for (id, query) in queries
+        .iter()
+        .enumerate()
+        .filter(|(_, q)| q.phrase != usize::MAX)
+    {
+        let anchor = (0..query.terms.len())
+            .min_by_key(|&i| frequencies[query.terms[i]])
+            .unwrap();
+        checks[query.terms[anchor]].push((id, anchor));
+    }
     let workers = thread::available_parallelism()
         .map_or(1, usize::from)
         .min(12)
@@ -512,9 +492,13 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
             }
             let chunk = &input[start..end];
             let dictionary = &dictionary;
-            let keys = &keys;
             let queries = &queries;
-            jobs.push(scope.spawn(move || parse(chunk, dictionary, keys, queries)));
+            let anchors = &anchors;
+            let clauses = &clauses;
+            let checks = &checks;
+            jobs.push(
+                scope.spawn(move || parse(chunk, dictionary, anchors, queries, clauses, checks)),
+            );
             start = end;
         }
         jobs.into_iter()
@@ -540,7 +524,9 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
         result.write(&mut bytes);
     }
     fs::create_dir_all(out)?;
-    fs::write(out.join("results.txt"), bytes)
+    let mut output = File::create(out.join("results.txt"))?;
+    output.write_all(&bytes)?;
+    Ok(())
 }
 fn main() -> io::Result<()> {
     let mut data = PathBuf::from("/data");

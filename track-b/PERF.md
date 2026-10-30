@@ -314,3 +314,29 @@ static-axis pass. At unchanged baseline memory that requires approximately
 474.8 ms versus the latest repeat, or 431.6 ms at historical-best memory, to
 break even. Actual memory is a material unknown because local inverted indexes
 survive through query evaluation.
+
+
+### Completed bold Intel result
+
+`run-ef1058c8fc0a` at `f20c4a1` passed every check, build, correctness,
+timeout and sandbox gate; static axes are measured. The full official feed
+generated 2026-10-30 23:55:20 UTC is archived in
+[intel-f20c4a1.json](../experiments/2026-10-30-bold/intel-f20c4a1.json).
+
+| T (ms) | Peak bytes | S | D | Machine points |
+|---:|---:|---:|---:|---:|
+| 497.701 | 177,471,488 | 564 | 1 | 56.339675 |
+
+Score delta against the immediate d900c19 repeat: **-4.733244**.
+Against the previous historical best: **-5.563253**.
+
+Reject and restore the complete prior selected B from d900c19. The
+adaptive index uses 177,471,488 bytes versus the immediate baseline's 67,141,632
+and is also slower (497.701 versus 478.898 ms). At this measured memory/source,
+it would need about 298.152 ms to beat the historical best. The index/storage
+tradeoff did not pay here. Preserve the complete candidate; no phase-specific
+profiling or individual mechanism attribution is claimed.
+
+All complete candidate and baseline sources remain under
+`experiments/2026-10-30-bold/`. No local builds, Docker, solver runs, tests or
+benchmarks were used; the official Intel run supplied execution evidence.
