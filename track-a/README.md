@@ -5,21 +5,26 @@ The task, the input files and the exact output format are in the [spec](https://
 ## Approach
 
 The Rust executable maps `requests.log` read-only and splits it at newline
-boundaries among up to 12 workers. Each worker parses bytes directly into 72
-hour buckets. The fixed 72-hour date span is part of the specification for every
-seed; endpoint names and results are always discovered from the input.
+boundaries among up to 12 workers. A first pass indexes byte ranges by hour,
+coalescing adjacent lines for the same hour. Separate ranges are retained when
+an hour reappears, so there is no assumed bound on input disorder. The fixed
+72-hour date span is part of the specification for every seed; endpoint names
+and results are always discovered from the input.
 
 Space delimiters are found eight bytes at a time using integer byte tests.
-Each hour has a hash map from borrowed endpoint bytes to a latency vector and
+Newlines in the index pass use the same word-scanning technique. Each hour has
+a hash map from borrowed endpoint bytes to a latency vector and
 5xx count. A small sampled hash accelerates lookups; the map still compares the
 entire endpoint for equality, so collisions cannot combine different endpoints.
 No per-line strings or endpoint copies are allocated.
 
-After parsing, a second parallel phase merges all contributions for each hour,
-selects the exact nearest-rank p50/p95/p99, sorts endpoints bytewise, and formats
-output. Keeping all groups until parsing completes supports arbitrarily
-disordered input and duplicate requests. Output buffers are written in hour
-order. Error ppm uses integer arithmetic; empty input produces an empty file.
+In the second pass, workers claim hours dynamically. One worker parses every
+indexed range for its hour, selects the exact nearest-rank p50/p95/p99, sorts
+endpoints bytewise, formats output, and frees the groups before claiming another
+hour. Latencies never need to be merged across workers. Completed byte buffers
+are written as soon as preceding hours are ready, preserving output order.
+Duplicate requests all count. Error ppm uses integer arithmetic; empty input
+produces an empty file.
 
 The only unsafe operations are the Unix `mmap`/`munmap` calls and creating a
 read-only slice from a successful mapping. A guard owns the mapping and outlives
@@ -62,20 +67,25 @@ cargo fmt --manifest-path track-a/Cargo.toml --check
 cargo clippy --manifest-path track-a/Cargo.toml --offline --all-targets -- -D warnings
 ```
 
-The nine differential tests build the release executable and compare its complete
+The ten differential tests build the release executable and compare its complete
 output with the Python reference. They cover the spec's worked example, empty
 input, percentile rank rounding, repeated ranks and values, uint32 extremes,
 every legal status, integer ppm, all 72 hour boundaries in reverse order,
 endpoint byte ordering and maximum length, all methods, duplicates, and three
 randomized seeds, partition boundaries, groups spanning every worker, and
-deliberate sampled-hash collisions. Tests live outside the track's build context.
+deliberate sampled-hash collisions. A regression test covers long runs that
+revisit hours, uneven hour sizes, and empty hours between output groups. Tests
+live outside the track's build context.
 
-Live-board score: **73.210288**, runtime **0.048674 s**, peak memory **41.30 MB**,
-with all gates passed. See [PERF.md](PERF.md) for the run ID and measurements.
+Last measured live-board score (before hour ownership): **73.210288**, runtime
+**0.048674 s**, peak memory **41.30 MB**, with all gates passed. The hour-owned
+version awaits a board measurement. See [PERF.md](PERF.md) for local prototype
+measurements and the previous run ID.
 
 ## With another 24 hours
 
-Profile parsing, map lookups and output separately on the scoring architecture. Compare endpoint interning
-and dense hour storage with the current maps, and benchmark chunk parsing and
-parallelism against their extra source size and memory. Validate each candidate
-on several generator seeds and retain only measured improvements.
+Measure hour ownership on the scoring architecture, then profile indexing,
+map lookups and output separately. Compare endpoint interning and denser range
+storage with their extra source size and memory, including heavily disordered
+inputs where the range index grows. Validate each candidate on several
+generator seeds and retain only measured improvements.

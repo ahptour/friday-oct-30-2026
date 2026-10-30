@@ -6,7 +6,10 @@ defines directed shortest-path queries with nonnegative uint32 edge weights.
 ## Approach
 
 Map the graph read-only and split its edge lines among up to twelve parsing
-workers. Build compact forward and reverse CSR adjacency arrays concurrently.
+workers. Temporary edges use eight bytes when both node IDs and the weight fit
+in 21 bits; a tagged index preserves larger values in a full-width side list.
+Build compact forward and reverse CSR adjacency arrays concurrently, reusing
+their offsets as write cursors and restoring the starts after construction.
 Both preserve parallel edges, duplicates, zero weights and self-loops. No node
 ordering, geometry, or input seed is assumed.
 
@@ -52,7 +55,8 @@ for native development. The unchanged Python reference remains the independent
 oracle. Differential tests cover the worked example, arbitrary small graphs,
 all-pairs queries, repeated queries, asymmetric reachability, disconnected
 components, zero cycles, duplicate and parallel edges, uint32 maximum weights,
-paths above uint32, isolated nodes, and empty query files.
+paths above uint32, packed-field boundaries, node IDs above 21 bits, adjacency
+gaps, isolated nodes, and empty query files.
 
 ## With another 24 hours
 

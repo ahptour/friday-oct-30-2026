@@ -6,6 +6,8 @@ use std::hash::{BuildHasherDefault, Hasher};
 use std::io::{self, Write};
 use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::mpsc;
 use std::thread;
 
 unsafe extern "C" {
@@ -63,7 +65,6 @@ struct Group {
     errors: u64,
 }
 type Groups<'a> = HashMap<&'a [u8], Group, BuildHasherDefault<FastHasher>>;
-type Hour<'a> = ([u8; 13], Groups<'a>);
 
 // Locate the first space eight bytes at a time; the scalar tail stays in bounds.
 fn space(input: &[u8], mut pos: usize) -> usize {
@@ -81,15 +82,9 @@ fn space(input: &[u8], mut pos: usize) -> usize {
     pos
 }
 
-fn parse(input: &[u8]) -> Vec<Hour<'_>> {
-    let mut hours: Vec<Hour<'_>> = (0..72).map(|_| Default::default()).collect();
+fn parse_groups<'a>(input: &'a [u8], groups: &mut Groups<'a>, label: &mut [u8; 13]) {
     let mut pos = 0;
     while pos < input.len() {
-        // Every seed uses the specified 72-hour span, crossing Oct 31 to Nov 1.
-        let day = (input[pos + 8] - b'0') * 10 + input[pos + 9] - b'0';
-        let day = if day >= 30 { day - 30 } else { day + 1 };
-        let hour = (input[pos + 11] - b'0') * 10 + input[pos + 12] - b'0';
-        let (label, groups) = &mut hours[usize::from(day) * 24 + usize::from(hour) - 18];
         label.copy_from_slice(&input[pos..pos + 13]);
         pos += 28;
         pos = space(input, pos);
@@ -109,7 +104,6 @@ fn parse(input: &[u8]) -> Vec<Hour<'_>> {
         group.latencies.push(latency);
         group.errors += u64::from(error);
     }
-    hours
 }
 
 fn percentiles(values: &mut [u32]) -> [u32; 3] {
@@ -128,33 +122,57 @@ fn percentiles(values: &mut [u32]) -> [u32; 3] {
     result
 }
 
-fn format_hours(hours: Vec<Vec<Hour<'_>>>) -> Vec<u8> {
+fn format_hour(label: [u8; 13], groups: Groups<'_>) -> Vec<u8> {
     let mut output = Vec::new();
-    for parts in hours {
-        let mut parts = parts.into_iter().filter(|(_, groups)| !groups.is_empty());
-        let Some((label, mut groups)) = parts.next() else {
-            continue;
-        };
-        for (_, part) in parts {
-            for (endpoint, mut group) in part {
-                let merged = groups.entry(endpoint).or_default();
-                merged.latencies.append(&mut group.latencies);
-                merged.errors += group.errors;
-            }
-        }
-        let mut groups: Vec<_> = groups.into_iter().collect();
-        groups.sort_unstable_by(|a, b| a.0.cmp(b.0));
-        for (endpoint, mut group) in groups {
-            let count = group.latencies.len() as u64;
-            let [p50, p95, p99] = percentiles(&mut group.latencies);
-            let ppm = group.errors * 1_000_000 / count;
-            output.extend_from_slice(&label);
-            output.extend_from_slice(b":00:00Z ");
-            output.extend_from_slice(endpoint);
-            writeln!(output, " {count} {p50} {p95} {p99} {} {ppm}", group.errors).unwrap();
-        }
+    let mut groups: Vec<_> = groups.into_iter().collect();
+    groups.sort_unstable_by(|a, b| a.0.cmp(b.0));
+    for (endpoint, mut group) in groups {
+        let count = group.latencies.len() as u64;
+        let [p50, p95, p99] = percentiles(&mut group.latencies);
+        let ppm = group.errors * 1_000_000 / count;
+        output.extend_from_slice(&label);
+        output.extend_from_slice(b":00:00Z ");
+        output.extend_from_slice(endpoint);
+        writeln!(output, " {count} {p50} {p95} {p99} {} {ppm}", group.errors).unwrap();
     }
     output
+}
+
+fn index_hours(input: &[u8], base: usize) -> [Vec<(usize, usize)>; 72] {
+    let mut ranges: [Vec<(usize, usize)>; 72] = std::array::from_fn(|_| Vec::new());
+    let mut pos = 0;
+    while pos < input.len() {
+        let start = pos;
+        // Every seed uses the specified 72-hour span, crossing Oct 31 to Nov 1.
+        let day = (input[pos + 8] - b'0') * 10 + input[pos + 9] - b'0';
+        let day = if day >= 30 { day - 30 } else { day + 1 };
+        let hour = (input[pos + 11] - b'0') * 10 + input[pos + 12] - b'0';
+        let hour = usize::from(day) * 24 + usize::from(hour) - 18;
+        pos += 28;
+        while pos + 8 <= input.len() {
+            let word =
+                u64::from_le_bytes(input[pos..pos + 8].try_into().unwrap()) ^ 0x0a0a0a0a0a0a0a0a;
+            let matches = word.wrapping_sub(0x0101010101010101) & !word & 0x8080808080808080;
+            if matches != 0 {
+                pos += matches.trailing_zeros() as usize / 8;
+                break;
+            }
+            pos += 8;
+        }
+        while input[pos] != b'\n' {
+            pos += 1;
+        }
+        pos += 1;
+        // Coalesce only adjacent lines; later returns to this hour stay indexed.
+        if let Some(last) = ranges[hour].last_mut()
+            && last.1 == base + start
+        {
+            last.1 = base + pos;
+            continue;
+        }
+        ranges[hour].push((base + start, base + pos));
+    }
+    ranges
 }
 
 fn summarize(data: &Path, out: &Path) -> io::Result<()> {
@@ -176,7 +194,7 @@ fn summarize(data: &Path, out: &Path) -> io::Result<()> {
         .map_or(1, usize::from)
         .min(12)
         .min(size.div_ceil(64 * 1024));
-    let parsed = thread::scope(|scope| {
+    let ranges = thread::scope(|scope| {
         let mut jobs = Vec::new();
         let mut start = 0;
         for worker in 0..workers {
@@ -185,34 +203,56 @@ fn summarize(data: &Path, out: &Path) -> io::Result<()> {
                 end += 1;
             }
             let chunk = &input[start..end];
-            jobs.push(scope.spawn(move || parse(chunk)));
+            jobs.push(scope.spawn(move || index_hours(chunk, start)));
             start = end;
         }
         jobs.into_iter()
             .map(|job| job.join().unwrap())
             .collect::<Vec<_>>()
     });
-    let mut hours: Vec<Vec<Hour<'_>>> = (0..72).map(|_| Vec::new()).collect();
-    for part in parsed {
-        for (hour, groups) in hours.iter_mut().zip(part) {
-            hour.push(groups);
-        }
-    }
-    let results = thread::scope(|scope| {
-        let mut hours = hours.into_iter();
-        let mut jobs = Vec::new();
+    let next = AtomicUsize::new(0);
+    let (send, receive) = mpsc::channel();
+    thread::scope(|scope| {
         for _ in 0..workers {
-            let batch = hours.by_ref().take(72usize.div_ceil(workers)).collect();
-            jobs.push(scope.spawn(move || format_hours(batch)));
+            let next = &next;
+            let ranges = &ranges;
+            let send = send.clone();
+            scope.spawn(move || {
+                loop {
+                    // One worker owns all ranges and latency groups for this hour.
+                    let hour = next.fetch_add(1, Ordering::Relaxed);
+                    if hour >= 72 {
+                        break;
+                    }
+                    let mut groups = Groups::default();
+                    let mut label = [0; 13];
+                    for part in ranges {
+                        for &(start, end) in &part[hour] {
+                            parse_groups(&input[start..end], &mut groups, &mut label);
+                        }
+                    }
+                    let result = format_hour(label, groups);
+                    if send.send((hour, result)).is_err() {
+                        break;
+                    }
+                }
+            });
         }
-        jobs.into_iter()
-            .map(|job| job.join().unwrap())
-            .collect::<Vec<_>>()
-    });
-    for result in results {
-        output.write_all(&result)?;
-    }
-    Ok(())
+        drop(send);
+        let mut pending: Vec<Option<Vec<u8>>> = (0..72).map(|_| None).collect();
+        let mut written = 0;
+        for (hour, result) in receive {
+            pending[hour] = Some(result);
+            while written < 72 {
+                let Some(bytes) = pending[written].take() else {
+                    break;
+                };
+                output.write_all(&bytes)?;
+                written += 1;
+            }
+        }
+        Ok(())
+    })
 }
 
 fn main() -> io::Result<()> {

@@ -7,6 +7,8 @@
 | 2 | Twelve query workers | run-43460285dd9e | 0.354099 | 171.261952 | 59.008513 |
 | 3 | Compact queue entries with full-width fallback | run-b8e527b07f2c | 0.326074 | 171.425792 | 59.490467 |
 
+Step 4 below has local measurements only; the latest board result remains step 3.
+
 ## Rust implementation, 2026-10-30
 
 The 59.238-point target is achieved: commit `7e74e404` scores 59.490467 on the
@@ -71,3 +73,29 @@ points. All gates passed, exceeding the requested 59.238-point target.
 The compact-queue candidate passes all five differential suites, including paths
 above uint32 and randomized all-pairs queries with uint32 maximum weights. The
 full and sample published hashes also match.
+
+## Step 4: shrink temporary graph construction data
+
+Parsed edges now use one uint64 with three 21-bit fields. The high bit marks an
+index into a full-width side list when any field is too large, preserving exact
+uint32 node IDs and weights. Each CSR builder reuses its offsets as construction
+cursors, then shifts the resulting end offsets back to starts. This removes the
+two separate node-sized cursor allocations. The final adjacency representation
+and search loop are unchanged; temporary edge lists are still freed before
+queries start.
+
+The tested prototype was `.out/d-new/d-rawpacked-cursor.rs`; its measurements are
+in `.out/d-new/docker-results.json` at the repository root. On local Linux ARM64,
+full seed 1 warm median time fell from 174.5 to 170.2 ms. The largest warm cgroup
+memory peak fell from 168.9 to 136.5 MB. These compare four warm runs of each
+version, excluding the first run. Every output matched the published hash.
+The estimated gain after source-size cost is about 0.9 D points, not an official
+score, and is insufficient alone to return D to the team's best three tracks.
+Custom search maps and compressed adjacency were slower locally and are not
+included.
+
+Seven differential suites include new coverage of packed-field boundaries,
+node IDs above 21 bits, mixed compact and full-width edges, adjacency gaps and
+the last node. The existing uint32 maximum, long-distance, empty-graph and
+randomized all-pairs cases continue to pass, as do formatting and Clippy with
+warnings denied.

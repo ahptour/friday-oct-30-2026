@@ -168,6 +168,20 @@ class TrackATest(unittest.TestCase):
                 rows.append(row(hour, endpoint, [200, 499, 500, 599][block % 4], latency))
         self.check_rows(rows)
 
+    def test_revisited_hour_runs_with_missing_hours_and_skewed_sizes(self):
+        rows = []
+        # Long runs cross byte partitions. Revisited hours must keep every
+        # separated run, and empty hours must not block ordered output.
+        runs = [(71, 1), (0, 4096), (35, 3), (71, 2048),
+                (0, 2), (35, 1024), (1, 1), (71, 4097)]
+        for run, (hour, count) in enumerate(runs):
+            for i in range(count):
+                endpoint = ["/", LONGEST, "/revisited"][i % 3]
+                latency = [0, 4294967295, run * 1000 + i][run % 3]
+                rows.append(row(hour, endpoint, [200, 499, 500, 599][run % 4],
+                                latency, "GET" if i % 2 else "OPTIONS"))
+        self.check_rows(rows)
+
     def test_hash_collisions_preserve_exact_endpoint_identity(self):
         # These 100-byte endpoints share the first, middle and last eight bytes
         # sampled by FastHasher. HashMap must still compare the entire key.

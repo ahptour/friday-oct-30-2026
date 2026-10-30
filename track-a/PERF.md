@@ -85,3 +85,33 @@ The additional collision test uses distinct 100-byte endpoints with identical
 sampled first/middle/last words. Partition tests include inputs around the
 64 KiB worker threshold and large globally shuffled groups. They were added
 after the measured commit without changing its production implementation.
+
+## Step 3: hour ownership (2026-10-30; board measurement pending)
+
+Replace overlapping worker-local groups and their merge with a parallel range
+index followed by exclusive ownership of each hour. The index coalesces only
+adjacent same-hour lines and retains separate ranges for arbitrarily late
+returns. Workers claim hours dynamically, parse all ranges for one hour,
+select percentiles, format output, and release latency groups before moving on.
+The writer drains completed buffers in hour order. There are no new runtime
+dependencies or unsafe operations.
+
+The investigation's four interleaved full-seed-1 comparisons in local ARM64
+Linux containers measured process time separately from container startup and
+read peak memory from the cgroup:
+
+| Local metric | Previous version | Hour-owned prototype |
+|---|---:|---:|
+| Median process runtime | 33.108 ms | 26.310 ms |
+| Worst observed cgroup `memory.peak` | 39,763,968 bytes | 24,096,768 bytes |
+
+That is about 20.5% less runtime and 39.4% less peak memory on this dataset.
+These measurements are local diagnostics, not live-board results. The
+investigation estimated A at about 77.61 points after the extra-code penalty;
+that projection still needs a board run. Highly disordered inputs can require
+one range per line, so the memory reduction is not a universal bound.
+
+The prototype passed all nine existing differential tests, full seeds 1 and
+42, and offline Docker sandbox checks. Integration adds a differential
+regression for separated runs of the same hour, uneven hour sizes and missing
+hours. The Python correctness oracle and container build settings are unchanged.

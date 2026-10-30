@@ -55,17 +55,48 @@ fn number(input: &[u8], cursor: &mut usize) -> u32 {
     *cursor += 1;
     value
 }
-fn parse(input: &[u8]) -> Vec<[u32; 3]> {
-    let mut edges = Vec::with_capacity(input.len() / 18);
+struct Part {
+    edges: Vec<u64>,
+    large: Vec<[u32; 3]>,
+}
+impl Part {
+    fn iter(&self) -> impl Iterator<Item = [u32; 3]> + '_ {
+        self.edges.iter().map(|&v| {
+            if v >> 63 != 0 {
+                self.large[(v & 0x7fffffffffffffff) as usize]
+            } else {
+                [
+                    (v & 0x1fffff) as u32,
+                    ((v >> 21) & 0x1fffff) as u32,
+                    (v >> 42) as u32,
+                ]
+            }
+        })
+    }
+}
+fn parse(input: &[u8]) -> Part {
+    let mut part = Part {
+        edges: Vec::with_capacity(input.len() / 18),
+        large: Vec::new(),
+    };
     let mut cursor = 0;
     while cursor < input.len() {
-        edges.push([
+        let edge = [
             number(input, &mut cursor),
             number(input, &mut cursor),
             number(input, &mut cursor),
-        ]);
+        ];
+        // Three 21-bit fields fit below the tag bit; larger values stay exact.
+        let packed = if edge.iter().all(|&value| value < (1 << 21)) {
+            u64::from(edge[0]) | (u64::from(edge[1]) << 21) | (u64::from(edge[2]) << 42)
+        } else {
+            let index = part.large.len() as u64;
+            part.large.push(edge);
+            (1 << 63) | index
+        };
+        part.edges.push(packed);
     }
-    edges
+    part
 }
 #[derive(Clone, Copy, Default)]
 struct Edge {
@@ -77,25 +108,27 @@ struct Graph {
     edges: Vec<Edge>,
 }
 impl Graph {
-    fn build(n: usize, parts: &[Vec<[u32; 3]>], reverse: bool) -> Self {
+    fn build(n: usize, parts: &[Part], reverse: bool) -> Self {
         let mut offsets = vec![0u32; n + 1];
         let from = usize::from(reverse);
-        for edge in parts.iter().flatten() {
+        for edge in parts.iter().flat_map(Part::iter) {
             offsets[edge[from] as usize + 1] += 1;
         }
         for i in 1..=n {
             offsets[i] += offsets[i - 1];
         }
-        let mut positions = offsets[..n].to_vec();
         let mut edges = vec![Edge::default(); offsets[n] as usize];
-        for edge in parts.iter().flatten() {
-            let slot = &mut positions[edge[from] as usize];
+        for edge in parts.iter().flat_map(Part::iter) {
+            let slot = &mut offsets[edge[from] as usize];
             edges[*slot as usize] = Edge {
                 node: edge[1 - from],
                 weight: edge[2],
             };
             *slot += 1;
         }
+        // Construction leaves each node's end offset; restore start offsets.
+        offsets.rotate_right(1);
+        offsets[0] = 0;
         Self { offsets, edges }
     }
     fn neighbors(&self, node: usize) -> &[Edge] {

@@ -51,6 +51,21 @@ class TrackDTest(unittest.TestCase):
         self.check_graph(1, [], [], [])
         self.check_graph(3, [], [(0, 0), (1, 2), (2, 1)], [0, -1, -1])
 
+    def test_packed_edge_boundaries(self):
+        limit = 1 << 21
+        nodes = [0, 1, limit - 1, limit, limit + 1]
+        edges = [(0, 1, limit - 1), (1, limit - 1, limit),
+                 (limit - 1, limit, 0), (limit, limit + 1, 4294967295),
+                 (limit + 1, 1, 1), (0, 1, limit), (1, 0, 0),
+                 (limit + 1, limit + 1, 0)]
+        self.check_graph(limit + 2, edges,
+                         [(s, t) for s in nodes for t in nodes])
+
+    def test_adjacency_gaps_and_last_node(self):
+        edges = [(7, 2, 5), (2, 5, 0), (7, 2, 3), (5, 7, 8),
+                 (2, 2, 0), (7, 5, 4294967295)]
+        self.check_graph(8, edges, [(s, t) for s in range(8) for t in range(8)])
+
     def test_long_path_large_weights_and_direction(self):
         edges = [(i, i + 1, 4294967295) for i in range(200)]
         edges += [(i, i, 0) for i in range(201)]
