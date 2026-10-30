@@ -1,0 +1,68 @@
+{
+  "generated_at": "2026-10-30T22:50:48Z",
+  "team": "ahptour",
+  "a": {
+    "run_id": "run-95a10bfac7c3",
+    "commit": "9e2af173c1838b6c0279c46b2ff4673afa7969b0",
+    "pushed_at": "2026-10-30T22:50:15Z",
+    "dispatched_at": "2026-10-30T22:50:15Z",
+    "started_at": "2026-10-30T22:50:32Z",
+    "ended_at": "2026-10-30T22:50:33Z",
+    "queue_latency_s": 17.0,
+    "ok": true,
+    "stage": "scored",
+    "gates": {
+      "check": true,
+      "build": true,
+      "correctness": true,
+      "timeout": true,
+      "sandbox": true
+    },
+    "T_s": 0.042205,
+    "M_bytes": 19369984,
+    "S": 305,
+    "D": 1,
+    "K": 34.990618,
+    "points": 77.197581,
+    "static_axes": "measured",
+    "timeout_s": 96.142,
+    "build_s": 7.961,
+    "image_bytes": 118160425,
+    "failure": null,
+    "lang": [
+      "Rust"
+    ]
+  },
+  "d_restored": {
+    "run_id": "run-f35005ff134a",
+    "commit": "9e2af173c1838b6c0279c46b2ff4673afa7969b0",
+    "pushed_at": "2026-10-30T22:50:15Z",
+    "dispatched_at": "2026-10-30T22:50:15Z",
+    "started_at": "2026-10-30T22:50:36Z",
+    "ended_at": "2026-10-30T22:50:37Z",
+    "queue_latency_s": 21.0,
+    "ok": true,
+    "stage": "scored",
+    "gates": {
+      "check": true,
+      "build": true,
+      "correctness": true,
+      "timeout": true,
+      "sandbox": true
+    },
+    "T_s": 0.32486,
+    "M_bytes": 97796096,
+    "S": 361,
+    "D": 1,
+    "K": 16.919562,
+    "points": 61.419456,
+    "static_axes": "measured",
+    "timeout_s": 218.078,
+    "build_s": 0.54,
+    "image_bytes": 118107898,
+    "failure": null,
+    "lang": [
+      "Rust"
+    ]
+  }
+}

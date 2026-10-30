@@ -82,13 +82,13 @@ deliberate sampled-hash collisions. A regression test covers long runs that
 revisit hours, uneven hour sizes, and empty hours between output groups. Tests
 live outside the track's build context.
 
-Last measured live-board score: **75.758840**, runtime **0.048427 s**,
-peak memory **20.84 MB**, with all gates passed. See [PERF.md](PERF.md).
+The selected parser measured **77.197581 points**, **0.042205 s** and
+**19,369,984 peak bytes** in `run-95a10bfac7c3` at `9e2af17`, with every
+Intel board gate passed. This is one public-seed measurement. See [PERF.md](PERF.md).
 
 ## With another 24 hours
 
-Measure hour ownership on the scoring architecture, then profile indexing,
-map lookups and output separately. Compare endpoint interning and denser range
+Profile indexing, map lookups and output separately on the scoring architecture. Compare endpoint interning and denser range
 storage with their extra source size and memory, including heavily disordered
 inputs where the range index grows. Validate each candidate on several
 generator seeds and retain only measured improvements.

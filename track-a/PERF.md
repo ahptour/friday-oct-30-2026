@@ -220,7 +220,7 @@ records the successful gates and measured axes. The architecture did not reach
 the hoped-for 30 ms target in this implementation.
 
 
-## Step 6: isolate the Intel parser (2026-10-30; Intel trial)
+## Step 6: isolate the Intel parser (2026-10-30; selected on Intel)
 
 Retain the pre-step-5 hour ownership, endpoint maps, latency vectors and ordered
 writer. Change only parsing: classify spaces/LF in a bounded 64-byte window,
@@ -236,4 +236,18 @@ best baseline's unchanged memory, the candidate must run below **47.432 ms** to
 break even; any memory increase tightens that threshold. The threshold is a
 selection rule, not a speedup prediction. Native and x86_64 compilation checks
 pass; no local runtime tests or benchmarks were run per user instruction.
-Official gates, measured source, time, memory and score are pending.
+Intel run `run-95a10bfac7c3` at `9e2af17` passed all gates:
+
+| Runtime | Peak memory | Counted S | D | K | Machine points |
+|---:|---:|---:|---:|---:|---:|
+| 0.042205 s | 19,369,984 bytes | 305 | 1 | 34.990618 | 77.197581 |
+
+The measured S matches the estimate. Relative to the historical best,
+runtime falls 14.03%, memory rises 1.00%, and the net score improves
+**1.224367 points**. Compared with the discarded compact-record candidate,
+it is also faster (42.205 versus 45.323 ms), smaller (19.37 versus 25.32 MB),
+and shorter (305 versus 465 counted lines). Select this implementation.
+
+This is one public-data Intel measurement, not holdout validation.
+[Raw result and restored-D repeat](../experiments/2026-10-30-rejected-pipelines/intel-9e2af17.json)
+come from the official feed generated at 2026-10-30 22:50:48 UTC.
