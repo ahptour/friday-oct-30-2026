@@ -1,4 +1,3 @@
-use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::fs::{self, File};
@@ -6,10 +5,7 @@ use std::hash::{BuildHasherDefault, Hash, Hasher};
 use std::io::{self, Write};
 use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
-use std::sync::{
-    Mutex,
-    atomic::{AtomicU64, Ordering},
-};
+use std::sync::Mutex;
 use std::thread;
 
 unsafe extern "C" {
@@ -255,118 +251,113 @@ struct Group {
     note_bytes: u64,
     names_distinct: u64,
 }
-#[derive(Default)]
-struct Head(UnsafeCell<[u8; 24]>);
-// Only the thread claiming a zero key writes its head; Release publishes it.
-// Readers acquire the published key before reading, and heads never change.
-unsafe impl Sync for Head {}
-struct Names<'a> {
-    keys: Vec<AtomicU64>,
-    heads: Vec<Head>,
-    countries: Vec<[AtomicU64; 4]>,
-    overflow: Mutex<HashMap<&'a [u8], [u64; 4], BuildHasherDefault<FastHasher>>>,
+const NAME_SHARDS: usize = 32;
+const NAME_BATCH: usize = 64;
+struct Shard<'a> {
+    keys: Vec<u64>,
+    heads: Vec<[u8; 24]>,
+    countries: Vec<[u64; 4]>,
+    overflow: HashMap<&'a [u8], [u64; 4], BuildHasherDefault<FastHasher>>,
 }
-impl<'a> Names<'a> {
-    fn probe(&self, name: &[u8]) -> u64 {
-        let mut hash = FastHasher::default();
-        name.hash(&mut hash);
-        let hash = hash.finish();
-        let slot = hash as usize & (self.keys.len() - 1);
-        prefetch(&self.keys[slot]);
-        prefetch(&self.heads[slot]);
-        hash
+impl<'a> Shard<'a> {
+    fn new(capacity: usize) -> Self {
+        Self {
+            keys: vec![0; capacity],
+            heads: vec![[0; 24]; capacity],
+            countries: vec![[0; 4]; capacity],
+            overflow: HashMap::default(),
+        }
     }
-    fn intern(&self, input: &[u8], name: &[u8], hash: u64) -> Option<usize> {
+    fn intern(&mut self, input: &[u8], name: &[u8], hash: u64) -> Option<usize> {
         let start = name.as_ptr() as usize - input.as_ptr() as usize;
-        if start < u32::MAX as usize && name.len() <= u16::MAX as usize {
-            // 0 is empty, 1 is busy; every published key has a nonzero offset.
-            let key = ((start as u64 + 1) << 32) | ((hash >> 48) << 16) | name.len() as u64;
+        // Eligibility is mapping-wide, so an early and a late occurrence can
+        // never split the same name between compact storage and overflow.
+        if input.len() < u32::MAX as usize && name.len() <= u16::MAX as usize {
+            // Shard, fingerprint and initial slot use disjoint hash bits.
+            let key =
+                ((start as u64 + 1) << 32) | (((hash >> 32) & 0xffff) << 16) | name.len() as u64;
             for probe in 0..32 {
-                let index = (hash as usize).wrapping_add(probe) & (self.keys.len() - 1);
-                let cell = &self.keys[index];
-                let mut old = cell.load(Ordering::Acquire);
+                let slot = (hash as usize).wrapping_add(probe) & (self.keys.len() - 1);
+                let old = self.keys[slot];
                 if old == 0 {
-                    old = match cell.compare_exchange(0, 1, Ordering::Acquire, Ordering::Acquire) {
-                        Ok(_) => {
-                            // This writer exclusively owns the unpublished head.
-                            unsafe {
-                                std::ptr::copy_nonoverlapping(
-                                    name.as_ptr(),
-                                    self.heads[index].0.get().cast::<u8>(),
-                                    name.len().min(24),
-                                );
-                            }
-                            cell.store(key, Ordering::Release);
-                            key
-                        }
-                        Err(winner) => winner,
-                    };
-                }
-                while old == 1 {
-                    std::hint::spin_loop();
-                    old = cell.load(Ordering::Acquire);
+                    self.keys[slot] = key;
+                    let len = name.len().min(24);
+                    self.heads[slot][..len].copy_from_slice(&name[..len]);
+                    return Some(slot);
                 }
                 if old as u32 == key as u32 {
-                    let head = unsafe { &*self.heads[index].0.get() };
                     let offset = (old >> 32) as usize - 1;
-                    if head[..name.len().min(24)] == name[..name.len().min(24)]
+                    if self.heads[slot][..name.len().min(24)] == name[..name.len().min(24)]
                         && (name.len() <= 24
                             || input[offset + 24..offset + name.len()] == name[24..])
                     {
-                        return Some(index);
+                        return Some(slot);
                     }
                 }
             }
         }
-        // Long names, offsets outside u32 and crowded tables remain exact.
+        // Oversized names/mappings and crowded probe windows stay exact.
         None
     }
-    fn overflow_first(&self, name: &'a [u8], country: usize) -> bool {
-        let bit = 1 << (country % 64);
-        let mut overflow = self.overflow.lock().unwrap();
-        let words = overflow.entry(name).or_insert([0; 4]);
-        let fresh = words[country / 64] & bit == 0;
-        words[country / 64] |= bit;
+    fn mark(&mut self, input: &[u8], row: Pending<'a>) -> bool {
+        let words = if let Some(slot) = self.intern(input, row.name, row.hash) {
+            &mut self.countries[slot]
+        } else {
+            self.overflow.entry(row.name).or_insert([0; 4])
+        };
+        let bit = 1u64 << (row.country % 64);
+        let word = &mut words[row.country / 64];
+        let fresh = *word & bit == 0;
+        *word |= bit;
         fresh
+    }
+}
+struct Names<'a> {
+    shards: Vec<Mutex<Shard<'a>>>,
+}
+impl<'a> Names<'a> {
+    fn flush(&self, shard: usize, input: &[u8], rows: &mut Vec<Pending<'a>>, groups: &mut [Group]) {
+        if rows.is_empty() {
+            return;
+        }
+        // One lock covers the entire batch. Keys, heads and membership words
+        // are accessed only by the owner of this shard's mutex.
+        let mut table = self.shards[shard].lock().unwrap();
+        for i in 0..rows.len() {
+            if let Some(next) = rows.get(i + 8) {
+                let slot = next.hash as usize & (table.keys.len() - 1);
+                prefetch(&table.keys[slot]);
+                prefetch(&table.heads[slot]);
+                prefetch(&table.countries[slot]);
+            }
+            let row = rows[i];
+            groups[row.country].names_distinct += u64::from(table.mark(input, row));
+        }
+        rows.clear();
     }
 }
 #[derive(Clone, Copy)]
 struct Pending<'a> {
     name: &'a [u8],
     country: usize,
-    slot: u64,
+    hash: u64,
 }
 struct Pipeline<'a> {
-    pending: [Option<Pending<'a>>; 16],
-    marks: [Option<(usize, usize)>; 16],
-    cursor: usize,
+    pending: [Vec<Pending<'a>>; NAME_SHARDS],
 }
 impl<'a> Pipeline<'a> {
-    fn advance(
-        &mut self,
-        next: Option<Pending<'a>>,
-        names: &Names<'a>,
-        input: &[u8],
-        groups: &mut [Group],
-    ) {
-        let k = self.cursor % 16;
-        if let Some((slot, country)) = self.marks[k].take() {
-            let bit = 1 << (country % 64);
-            let fresh =
-                names.countries[slot][country / 64].fetch_or(bit, Ordering::Relaxed) & bit == 0;
-            groups[country].names_distinct += u64::from(fresh);
+    fn push(&mut self, row: Pending<'a>, names: &Names<'a>, input: &[u8], groups: &mut [Group]) {
+        let shard = (row.hash >> 48) as usize & (NAME_SHARDS - 1);
+        let rows = &mut self.pending[shard];
+        rows.push(row);
+        if rows.len() == NAME_BATCH {
+            names.flush(shard, input, rows, groups);
         }
-        if let Some(old) = self.pending[k].take() {
-            if let Some(slot) = names.intern(input, old.name, old.slot) {
-                prefetch(&names.countries[slot][old.country / 64]);
-                self.marks[k] = Some((slot, old.country));
-            } else {
-                groups[old.country].names_distinct +=
-                    u64::from(names.overflow_first(old.name, old.country));
-            }
+    }
+    fn finish(&mut self, names: &Names<'a>, input: &[u8], groups: &mut [Group]) {
+        for (shard, rows) in self.pending.iter_mut().enumerate() {
+            names.flush(shard, input, rows, groups);
         }
-        self.pending[k] = next;
-        self.cursor += 1;
     }
 }
 fn parse<'a>(
@@ -379,9 +370,7 @@ fn parse<'a>(
 ) -> Vec<Group> {
     let mut groups = vec![Group::default(); countries];
     let mut pipeline = Pipeline {
-        pending: [None; 16],
-        marks: [None; 16],
-        cursor: 0,
+        pending: std::array::from_fn(|_| Vec::with_capacity(NAME_BATCH)),
     };
     let mut structure = Structure::new(input, start);
     let mut pos = start;
@@ -418,18 +407,22 @@ fn parse<'a>(
         group.max = group.max.max(cents);
         group.name_bytes += (f2 - f1 - 1) as u64 - (q2 - q1) / 2 - quoted as u64;
         group.note_bytes += (f3 - f2 - 1) as u64 - (q3 - q2) / 2 - u64::from(q3 != q2);
-        let next = Pending {
-            name,
-            country,
-            slot: names.probe(name),
-        };
-        pipeline.advance(Some(next), names, input, &mut groups);
+        let mut hash = FastHasher::default();
+        name.hash(&mut hash);
+        pipeline.push(
+            Pending {
+                name,
+                country,
+                hash: hash.finish(),
+            },
+            names,
+            input,
+            &mut groups,
+        );
         pos = (eol + 1).min(input.len());
     }
-    // Resolve the last sixteen names and retire their membership updates.
-    for _ in 0..32 {
-        pipeline.advance(None, names, input, &mut groups);
-    }
+    // Every partial batch is committed before this worker publishes its groups.
+    pipeline.finish(names, input, &mut groups);
     groups
 }
 
@@ -518,16 +511,9 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
     // distinct counting exact even when the table is crowded.
     let capacity = (len / 64).next_power_of_two().clamp(1024, 1 << 17);
     let names = Names {
-        keys: std::iter::repeat_with(AtomicU64::default)
-            .take(capacity)
+        shards: (0..NAME_SHARDS)
+            .map(|_| Mutex::new(Shard::new(capacity / NAME_SHARDS)))
             .collect(),
-        heads: std::iter::repeat_with(Head::default)
-            .take(capacity)
-            .collect(),
-        countries: std::iter::repeat_with(|| std::array::from_fn(|_| AtomicU64::default()))
-            .take(capacity)
-            .collect(),
-        overflow: Mutex::new(HashMap::default()),
     };
     let parts = thread::scope(|scope| {
         let jobs: Vec<_> = bounds

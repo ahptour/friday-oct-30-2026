@@ -316,3 +316,57 @@ The selected combination keeps A and restores B/C/D as described. No local
 builds, solver executions, tests, benchmarks or Docker runs were performed.
 Restored-combination official results remain pending; public-data gate success
 is not evidence of final holdout correctness.
+
+
+## Batched shard ownership candidate (2026-10-30)
+
+Replace the shared atomic name table with 32 mutex-owned shards. Every parser
+collects up to 64 records per shard, acquires that shard once for the batch,
+and performs ordinary key/head/membership reads and writes. Full batches flush
+during parsing; all partial batches flush before the worker returns. Preserve
+twelve parsing workers, the selected SIMD structural scanner and short-decimal
+conversion. This is a synchronization and cache-locality redesign, rather than
+the rejected country-major/six-worker candidate.
+
+Each shard retains compact offset/length/fingerprint keys, inline 24-byte heads,
+full tail comparison and four ordinary country words. Shard selection uses hash
+bits 48–52, fingerprints use bits 32–47, and initial slots use low bits. Thus a
+shard does not sacrifice fingerprint entropy. While holding the lock, processing
+prefetches keys, heads and country words eight records ahead. There is no busy
+key, unsafe head publication, per-record CAS or atomic membership operation.
+
+A row's name routes deterministically to one shard. Exact equality still checks
+all name bytes; valid CSV escaping is injective after removing outer quotes,
+and both empty encodings map to an empty slice. Oversized names, mappings at
+least u32::MAX bytes long, and crowded 32-probe windows use that shard's exact
+byte-keyed overflow map. Mapping eligibility is shared by every occurrence:
+large mappings route all names to overflow, preventing an early compact entry
+and a late full-width offset from counting the same name twice. Slots never
+clear or move, so a name falling through a crowded window
+cannot later enter the main table and be counted twice. All accesses to each
+shard's state, including prefetch references, occur under its mutex. No worker
+holds more than one shard lock, preventing a lock-order cycle. Country-bit
+first insertion is credited to the flushing worker's groups, and those credits
+sum exactly once after all workers join. Mapping lifetime covers all pending
+slices, table tails and overflow keys.
+
+The fixed common-table payload remains 8,388,608 bytes at full capacity. Twelve
+workers' maximum retained batches add 786,432 bytes (32 shards * 64 records *
+32 bytes * 12 workers), plus vector/mutex metadata, replacing the small original
+pipeline rings. Per-shard load imbalance may increase overflow-map allocations.
+At most 64 records amortize each lock; skewed names or slow overflow comparisons
+can serialize workers. These are risks to measure, not promised speedups.
+
+Immediate baseline `d900c19`, `run-d4ed0d0a93de`: 55.667 ms, 13,316,096 bytes,
+S555, D1, 69.428812 points. Historical best `8dd4f2f`, `run-bee64502fbeb`:
+55.221 ms, 12,730,368 bytes, S555, D1, 69.711510 points. Estimated source S540
+uses the local formatted noncomment-line delta, not the official formatter.
+With an illustrative 14.2 MB measured peak, full-score break-even against the
+historical best is about 53.296 ms.
+Actual source count, memory and runtime remain unmeasured.
+
+Complete baseline/candidate source files are in
+[`experiments/2026-10-30-bold`](../experiments/2026-10-30-bold/). Formatting and
+source review completed. Per user instruction, no local compilation, Docker,
+solver execution, tests or runtime benchmarks were performed. Official Intel
+build/correctness/performance gates remain pending.

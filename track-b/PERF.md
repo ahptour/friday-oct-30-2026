@@ -257,3 +257,60 @@ The selected combination keeps A and restores B/C/D as described. No local
 builds, solver executions, tests, benchmarks or Docker runs were performed.
 Restored-combination official results remain pending; public-data gate success
 is not evidence of final holdout correctness.
+
+
+## Bold candidate: local adaptive inverted indexes (2026-10-30)
+
+Replace the streaming query checks at every 64-document block with a build then
+query pipeline inside each of twelve document workers. Each worker records text
+ranges and builds postings only for query vocabulary. A posting begins as an
+ascending, deduplicated vector of local document IDs; when that payload exceeds
+a local bitmap it promotes to the bitmap. Both forms share a Vec<u32> allocation
+and carry an exact document frequency. The cutoff is derived from actual chunk
+document count rather than a sampled-frequency correctness assumption.
+
+Boolean expressions retain the existing left-to-right DNF expansion and exact
+contradiction removal. Each worker now selects the actually rarest positive
+posting for every clause. Sparse anchors enumerate candidate documents and test
+other terms by binary search or bitmap membership. Dense anchors combine entire
+64-document words, with monotone cursors through negative sparse postings. A
+reusable touched-word union combines all clauses without double counting, then
+computes counts, ID sums and the first ten results in ascending order.
+
+Phrase queries enumerate their actually rarest posting and filter by all term
+memberships before reading source text. Exact ASCII tokenization and KMP verify
+the ordered phrase, including repeated terms and overlapping prefixes. No full
+positional index is retained. Each posting contains a document at most once,
+so repeated occurrences cannot duplicate a phrase result. Text ranges never
+cross document boundaries. Chunk results are merged in file order; the frozen
+contract's docs.txt section 2.1 guarantees dense ascending IDs, making local ID
+plus chunk base exact; this is a contract property, not a sampled distribution.
+
+This is a new implementation using the existing tokenizer, clause semantics and
+summary arithmetic; no external code was adapted and no dependencies were added.
+The hypothesis is fewer repeated query/clause probes during tokenization and
+actual-frequency anchors. The risks are allocation overhead for sparse postings,
+retokenization of phrase candidates and higher peak memory from retaining indexes
+until each worker finishes its query phase. Earlier hybrid-index approaches had
+losing timings; this candidate differs in using independent adaptive local indexes,
+no positional/automaton construction and word-level dense-clause evaluation.
+
+Immediate official baseline `d900c19`, `run-d615b350ea77`:
+478.898 ms, 67,141,632 bytes, S548, D1, 61.072919 points. Historical best:
+437.009 ms, 70,397,952 bytes, S541, 61.902928 points. Runtime and actual peak
+are unmeasured; this is a deliberately substantial Intel experiment, not a
+claimed improvement. Complete baseline and candidate source files are preserved
+at `experiments/2026-10-30-bold/b-baseline.rs` and `b-candidate.rs`.
+
+Rust formatting and whitespace/source review passed. Source review covers
+sparse-to-dense promotion, duplicate stamps, padding bits, monotone sparse-word
+cursors, contradictory clauses, KMP failure links, empty inputs and sorted result
+merging. Per user instruction, no local compilation, solver execution, tests or
+Docker runs were performed. Official build/correctness/performance are pending.
+
+The formatted nonblank/noncomment Rust delta is +16 lines, suggesting S564
+against official baseline S548; this remains an estimate until the official
+static-axis pass. At unchanged baseline memory that requires approximately
+474.8 ms versus the latest repeat, or 431.6 ms at historical-best memory, to
+break even. Actual memory is a material unknown because local inverted indexes
+survive through query evaluation.

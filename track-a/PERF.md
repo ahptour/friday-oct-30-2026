@@ -305,3 +305,50 @@ The selected combination keeps A and restores B/C/D as described. No local
 builds, solver executions, tests, benchmarks or Docker runs were performed.
 Restored-combination official results remain pending; public-data gate success
 is not evidence of final holdout correctness.
+
+
+## Bold candidate: compact records with immediate page release and positioned output
+
+The user requested a substantial new experiment in one combined Intel push.
+Revisit the rejected `330dbc3` representation with concrete changes to its
+known excess work and allocation overlap. Preserve the prior selected source
+in `experiments/2026-10-30-bold/a-baseline.rs` and the complete new candidate in
+`a-candidate.rs` there.
+
+Parsing now uses the selected bounded SIMD field/latency routines in one pass,
+retaining four-byte packed records when latency < 2^20 and local endpoint ID <
+2048; wide pairs preserve every other latency/ID. Per-hour chains preserve
+arbitrary disorder. Blocks shrink from 16 KiB to 4 KiB with eight header bytes
+(1,022 packed records), cutting partial-block slack. Unique endpoints are
+hash-deduplicated before sorting; local-to-global translation uses exact hash
+lookups instead of sorting all duplicated worker name lists and binary searches.
+
+Each hour has one consumer. After its second/scatter read of each part, it
+immediately discards that part's whole hour-owned pages, coalescing contiguous
+blocks. Other hours never read those blocks; no shared completion flags or
+prefix reclaimer are needed. Capture links before discarding. Linux x86_64 uses
+its 4 KiB base-page granularity; other targets retain the mapping until join.
+Formatting uses only copied latencies, prefix sums, error counts, labels and
+input-backed endpoint strings. Wide exception vectors remain live until join.
+
+Each worker owns one reusable output buffer. The preceding hour publishes its
+ending offset with Release; the successor acquires that offset and writes with
+FileExt::write_all_at. Publish the successor offset before I/O so an I/O error
+cannot leave another worker waiting forever; join propagates write failures.
+A buffer is reused only after its write finishes. Missing hours publish the
+same offset, including chains of empty hours. This removes queued output
+backlogs and preserves exact chronological/bytewise output order.
+
+The immediate selected repeat at `d900c19`, `run-fdc7f970b0d2`, passed all gates:
+44.913 ms, 21,602,304 bytes, S329, D1, 75.801948 points. Historical best is
+41.140 ms, 19,095,552 bytes, S329, 77.290321 points (`run-433a18fd0c5d`).
+Estimated S488 from formatted source delta requires approximately
+35.880 ms at an assumed 20 MB peak to beat
+that best. Neither memory nor speed is measured yet. This is a sizable source
+cost, justified only if the reduced passes and overlap buy enough throughput.
+
+Source review covers minimum-line arena sizing, record bit layouts, scatter
+counts, independent block ownership, page alignment, captures before discard,
+empty hours, buffer ownership and write-error propagation. No local compilation,
+solver execution, tests or Docker runs were performed, per user instruction.
+Formatting is checked; official build/correctness/performance are pending.

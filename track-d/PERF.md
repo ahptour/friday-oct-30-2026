@@ -381,3 +381,50 @@ The selected combination keeps A and restores B/C/D as described. No local
 builds, solver executions, tests, benchmarks or Docker runs were performed.
 Restored-combination official results remain pending; public-data gate success
 is not evidence of final holdout correctness.
+
+
+## Bold search-state rewrite: generation tables and radix queues (2026-10-30)
+
+Replace both search engines' HashMap distance stores and binary heaps together.
+The distance table uses two flat vectors: an exact u32 node plus u32 generation
+in each tag, and a full u64 distance. Linear probing compares complete tags,
+grows above 75% occupancy, and rehashes only the current generation. Starting a
+query increments the generation in O(1), avoiding a capacity-sized table clear
+for every short query after a long search. Generation wrap explicitly clears
+tags before restarting at one; generation zero is always vacant. No node ID or
+distance is narrowed or used as an empty-key sentinel.
+
+Each frontier is a 65-bucket monotone radix heap. Buckets use the highest
+set bit of distance XOR the most recently exposed minimum; zero holds equal
+minimum distances. A u64 bitset locates the first nonempty higher bucket.
+Redistribution chooses that bucket's exact minimum and moves all entries to
+strictly lower buckets, retaining allocations. Queue keys contain only distance,
+so equal-distance nodes may be popped in any order and zero-weight arcs remain
+valid. Full u64 keys cover distances above u32 without a second heap or a
+compact/wide ordering assumption. Both directions retain their own monotone
+state. Stale-entry checks and the frontier-minimum stopping rule remain intact.
+
+Packed CSR adjacency, twelve parsing workers, concurrent graph builds and twelve
+query workers are retained. This changes core search state rather than graph
+contraction or predecessor suppression. No external implementation was copied
+and no new runtime dependency or compiler flag is introduced.
+
+Immediate baseline: `d900c19`, `run-d93663499dcd`, 327.403 ms,
+97,128,448 bytes, S361, D1, 61.364546 points; every official gate passed.
+Historical best: 309.870 ms, 96,964,608 bytes, S361, 61.969457 points.
+Estimated source is S437 from the formatted noncomment delta, not an official
+measurement. At unchanged historical-best memory this needs about 292.6 ms to
+break even. Flat-table slack and retained radix buckets may increase peak:
+tags plus values require 16 bytes per allocated slot, and radix entries occupy
+16 bytes on x86_64 versus eight for the old compact queue. The intended gain is
+less per-query clearing and cheaper frontier operations; actual time and peak
+must come from Intel. This experiment does not isolate the two changes.
+
+Source review checked vacant-tag termination, exact key matching, growth
+rehashing, generation rollover, monotone keys, strictly decreasing redistribution
+bucket indexes, wide distances, zero-weight ties and empty-frontier termination.
+Formatting and diff whitespace checks passed. No compilation, local execution,
+tests, benchmarks or Docker runs were performed, following the user's request.
+Official build/correctness/performance results remain pending. Complete baseline
+and candidate sources are in `experiments/2026-10-30-bold/d-baseline.rs` and
+`experiments/2026-10-30-bold/d-candidate.rs` outside the production track.
