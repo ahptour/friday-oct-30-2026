@@ -15,6 +15,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 
@@ -71,8 +72,15 @@ def build(track, tag):
 
 def run(track, tag, data):
     out = os.path.join(ROOT, ".out", f"track-{track}")
-    shutil.rmtree(out, ignore_errors=True)
-    os.makedirs(out)
+    os.makedirs(out, exist_ok=True)
+    # Docker VMs can cache deleted bind mounts; give each run a fresh path.
+    with os.scandir(out) as entries:
+        for entry in entries:
+            if entry.is_dir(follow_symlinks=False):
+                shutil.rmtree(entry.path)
+            else:
+                os.unlink(entry.path)
+    out = tempfile.mkdtemp(prefix="run-", dir=out)
     os.chmod(out, 0o777)  # the run is an unprivileged user, as on the board
     cmd = ["docker", "run", "--rm", "--network=none", "--read-only", "--tmpfs", "/tmp:rw,size=1g,exec",
            "--memory=8g", "--memory-swap=8g", "--pids-limit=512", "--cap-drop=ALL",
