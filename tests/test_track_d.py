@@ -58,11 +58,16 @@ class TrackDTest(unittest.TestCase):
                  (limit - 1, limit, 0), (limit, limit + 1, 4294967295),
                  (limit + 1, 1, 1), (0, 1, limit), (1, 0, 0),
                  (limit + 1, limit + 1, 0),
-                 (0, limit - 1, 1023), (limit - 1, 0, 1024)]
+                 (0, limit - 1, 1023), (limit - 1, 0, 1024),
+                 (1, limit - 1, 2046)]
         self.check_graph(limit + 2, edges,
                          [(s, t) for s in nodes for t in nodes])
 
     def test_adjacency_weight_tag_boundary(self):
+        for weight in [0, 1, 1023, 1024, 2046, 2047, 2048, 4294967295]:
+            with self.subTest(weight=weight):
+                self.check_graph(2, [(0, 1, weight)], [(0, 1), (1, 0), (1, 1)],
+                                 [weight, -1, 0])
         edges = [(0, 1, 1023), (1, 2, 1024), (0, 2, 4095),
                  (2, 3, 0), (3, 4, 4294967295), (4, 1, 1),
                  (0, 1, 1024), (2, 2, 1023)]
