@@ -213,3 +213,36 @@ Complete raw official evidence, generated 2026-10-30 23:03:59 UTC, is saved in
 [intel-8dd4f2f.json](../experiments/2026-10-30-c-short-decimals/intel-8dd4f2f.json).
 Results are recorded locally for the next deliberate submission, avoiding a
 separate documentation-only board run.
+
+
+## Step 5: country-major name membership (2026-10-30)
+
+Hypothesis: place membership bits by country, indexed by immutable interned
+name slot, to improve update locality and remove per-record first-bit counting
+for common names. The second pipeline stage now prefetches and sets
+`country * words_per_country + slot / 64`, bit `slot % 64`. After all workers
+join and both sixteen-entry stages drain, finish sums popcounts per country.
+Overflow names retain exact byte-keyed membership and worker first-bit counts.
+The interner, decimal conversion, worker count and pipeline depth are unchanged.
+
+Slot identity remains immutable; Release/Acquire head publication and full
+name/tail comparisons are unchanged. Atomic OR unions concurrent updates;
+joining workers makes the subsequent relaxed loads observe completed writes.
+A name that exhausts bounded probing cannot later enter the main table:
+probed slots never clear, busy publications are awaited, and names never move.
+Thus overflow and main-table counts remain disjoint. Long names and offsets
+outside the packed key range always use overflow. Empty names and bucket zero
+(`_UNMATCHED`) follow the same exact membership rules as other values.
+
+At maximum capacity and 241 countries the bitset payload falls from 4,194,304
+to 3,948,544 bytes. Locality is the hypothesis; false sharing and the final
+popcount pass may offset it. Baseline is `8dd4f2f`, `run-bee64502fbeb`:
+55.221 ms, 12,730,368 bytes, S555, D1, 69.711510 points. Estimated S565 at
+unchanged measured memory requires roughly 54.926 ms to break even; replace
+estimates with official axes. This is a separate experiment from decimal parsing.
+Complete baseline and candidate files are archived under
+[`experiments/2026-10-30-c-country-major`](../experiments/2026-10-30-c-country-major/).
+
+Formatted and reviewed source indexing, publication, pipeline drain and counting.
+Per the user's latest instruction, no Docker build or local execution was run.
+Official compilation, correctness gates and Intel score are pending.
