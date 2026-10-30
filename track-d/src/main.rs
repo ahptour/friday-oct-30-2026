@@ -167,49 +167,30 @@ impl Graph {
 #[derive(Default)]
 struct Queue {
     small: BinaryHeap<Reverse<u64>>,
-    large: BinaryHeap<Reverse<(u64, u32, u32)>>,
+    large: BinaryHeap<Reverse<(u64, u32)>>,
 }
 impl Queue {
     fn new() -> Self {
         Self::default()
     }
-    fn push(&mut self, distance: u64, node: u32, parent: u32) {
-        // 22 distance bits plus two 21-bit node IDs retain eight-byte entries.
-        if distance < 1 << 22 && node < 1 << 21 && parent < 1 << 21 {
-            self.small.push(Reverse(
-                (distance << 42) | (u64::from(node) << 21) | u64::from(parent),
-            ));
+    fn push(&mut self, Reverse((distance, node)): Reverse<(u64, u32)>) {
+        if distance <= u64::from(u32::MAX) {
+            self.small.push(Reverse((distance << 32) | u64::from(node)));
         } else {
-            self.large.push(Reverse((distance, node, parent)));
+            self.large.push(Reverse((distance, node)));
         }
     }
-    fn decode(value: u64) -> (u64, u32, u32) {
-        (
-            value >> 42,
-            ((value >> 21) & 0x1fffff) as u32,
-            (value & 0x1fffff) as u32,
-        )
-    }
-    fn peek(&self) -> Option<(u64, u32, u32)> {
-        let small = self.small.peek().map(|value| Self::decode(value.0));
-        let large = self.large.peek().map(|value| value.0);
-        match (small, large) {
-            (Some(a), Some(b)) => Some(a.min(b)),
-            (a, b) => a.or(b),
-        }
-    }
-    fn pop(&mut self) -> Option<(u64, u32, u32)> {
-        let small = self.small.peek().map(|value| Self::decode(value.0));
-        // Wide IDs may have small distances, so always merge both minima.
-        if self
-            .large
+    fn peek(&self) -> Option<Reverse<(u64, u32)>> {
+        self.small
             .peek()
-            .is_some_and(|wide| small.is_none_or(|s| wide.0 < s))
-        {
-            self.large.pop().map(|value| value.0)
-        } else {
-            self.small.pop().map(|value| Self::decode(value.0))
-        }
+            .map(|&Reverse(value)| Reverse((value >> 32, value as u32)))
+            .or_else(|| self.large.peek().copied())
+    }
+    fn pop(&mut self) -> Option<Reverse<(u64, u32)>> {
+        self.small
+            .pop()
+            .map(|Reverse(value)| Reverse((value >> 32, value as u32)))
+            .or_else(|| self.large.pop())
     }
     fn len(&self) -> usize {
         self.small.len() + self.large.len()
@@ -234,29 +215,20 @@ impl Search {
         self.distance.clear();
         self.heap.clear();
         self.distance.insert(source, 0);
-        self.heap.push(0, source, source);
+        self.heap.push(Reverse((0, source)));
     }
     fn step(&mut self, other: &Self, graph: &Graph, best: &mut u64) {
-        let (distance, node, parent) = self.heap.pop().unwrap();
+        let Reverse((distance, node)) = self.heap.pop().unwrap();
         if distance != self.distance[&node] {
             return;
         }
-        for Edge {
-            node: neighbor,
-            weight,
-        } in graph.neighbors(node as usize)
-        {
-            // The parent's known distance is at most this path's prefix. With
-            // nonnegative weights, returning there cannot improve that value.
-            if neighbor == parent {
-                continue;
-            }
+        for Edge { node, weight } in graph.neighbors(node as usize) {
             let candidate = distance + u64::from(weight);
-            let slot = self.distance.entry(neighbor).or_insert(u64::MAX);
+            let slot = self.distance.entry(node).or_insert(u64::MAX);
             if candidate < *slot {
                 *slot = candidate;
-                self.heap.push(candidate, neighbor, node);
-                let back = other.distance.get(&neighbor).copied().unwrap_or(u64::MAX);
+                self.heap.push(Reverse((candidate, node)));
+                let back = other.distance.get(&node).copied().unwrap_or(u64::MAX);
                 if back != u64::MAX {
                     *best = (*best).min(candidate + back);
                 }
@@ -283,7 +255,8 @@ fn shortest(
     a.start(source);
     b.start(target);
     let mut best = u64::MAX;
-    while let (Some((left, _, _)), Some((right, _, _))) = (a.heap.peek(), b.heap.peek()) {
+    while let (Some(Reverse((left, _))), Some(Reverse((right, _)))) = (a.heap.peek(), b.heap.peek())
+    {
         // The sum of frontier minima is a lower bound for any undiscovered path.
         if left + right >= best {
             break;

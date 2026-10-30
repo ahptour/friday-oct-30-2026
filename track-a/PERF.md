@@ -180,7 +180,7 @@ oracle, and Docker full seed 42 all pass. Reproduction and evidence are in
 [`experiments/2026-10-30-compact-graphs/`](../experiments/2026-10-30-compact-graphs/).
 
 
-## Step 5: single-pass compact records (2026-10-30; Intel trial)
+## Step 5: single-pass compact records (2026-10-30; measured and reverted)
 
 Replace the full-file hour index and second parsing pass with one parse per
 line into private endpoint dictionaries and per-hour chains of 16 KB blocks.
@@ -201,5 +201,39 @@ Baseline for the Intel comparison: historical best `run-e3bf174864d4` at
 `420d664`, T=0.049090 s, M=19,177,472 bytes, S=272, D=1,
 points=75.973214. Local runtime tests and benchmarks are explicitly skipped per
 user instruction. Formatting and native/x86_64 Linux compilation checks pass.
-The candidate's correctness gates, runtime, memory, counted source and score
-await the official board. No gain is claimed in advance.
+The Intel trial `run-4932f1d71ccd` at `330dbc3` passed every gate, measuring
+T=0.045323 s, M=25,317,376 bytes, S=465, D=1, K=30.043006,
+points=73.887169. Relative to the historical best, time adds 0.866860 points,
+memory costs 1.206273 and source costs 1.746630: net **-2.086045 points**.
+At this memory/source cost it needed T below 0.037400 s to break even.
+
+The immediately preceding unchanged-production run at `a30d6d1`,
+`run-5320357f613d`, measured 0.056568 s, 20,905,984 bytes, S=272 and
+74.058976 points. The candidate also loses 0.171807 points against that run.
+The variation between baseline runs cautions against treating a single
+comparison as a precise causal estimate. No run demonstrated a score gain.
+
+Restore the previous production source and preserve the candidate as
+[`a-compact.rs`](../experiments/2026-10-30-rejected-pipelines/a-compact.rs).
+[Raw Intel evidence](../experiments/2026-10-30-rejected-pipelines/intel-330dbc3.json)
+records the successful gates and measured axes. The architecture did not reach
+the hoped-for 30 ms target in this implementation.
+
+
+## Step 6: isolate the Intel parser (2026-10-30; Intel trial)
+
+Retain the pre-step-5 hour ownership, endpoint maps, latency vectors and ordered
+writer. Change only parsing: classify spaces/LF in a bounded 64-byte window,
+decode the known-length latency with SIMD decimal arithmetic, and copy the hour
+label once per range. Reuse the existing scalar delimiter scanner for the index,
+long endpoints and short tails. There is no global packed-record buffer, block
+allocator, dictionary reconciliation or extra output queue. The Intel-only
+intrinsic path relies on the hardware contract; other targets use scalar parsing.
+
+This isolates the parsing hypothesis from step 5's memory-lifetime and source
+costs. Canonical local formatting estimates S=305 versus 272. At the historical
+best baseline's unchanged memory, the candidate must run below **47.432 ms** to
+break even; any memory increase tightens that threshold. The threshold is a
+selection rule, not a speedup prediction. Native and x86_64 compilation checks
+pass; no local runtime tests or benchmarks were run per user instruction.
+Official gates, measured source, time, memory and score are pending.

@@ -4,41 +4,37 @@ The task, the input files and the exact output format are in the [spec](https://
 
 ## Approach
 
-The Rust executable maps `requests.log` read-only and parses newline-aligned
-chunks with up to twelve workers. Each line is parsed once. On Intel, an AVX2
-mask identifies spaces and LF in the 64 bytes after the timestamp; long endpoints
-continue through bounded delimiter searches, and short tails use a padded stack
-buffer. Endpoint dictionaries are private to each parser and use exact byte
-comparison, including hash collisions.
+The Rust executable maps `requests.log` read-only and splits it at newline
+boundaries among up to 12 workers. A first pass indexes byte ranges by hour,
+coalescing adjacent lines for the same hour. Separate ranges are retained when
+an hour reappears, so there is no assumed bound on input disorder. The fixed
+72-hour date span is part of the specification for every seed; endpoint names
+and results are always discovered from the input.
 
-Each parser stores ordinary requests in four-byte records: twenty latency bits,
-eleven endpoint-ID bits and one error bit. Latencies outside that range and
-larger endpoint IDs go to exact full-width side lists. Packed records live in
-16 KB blocks linked by hour, carved from one anonymous mapping per parser.
-The reserve follows the minimum legal line length plus one partial block per
-hour; allocating it does not touch unused pages. Every record is retained even
-when an earlier hour reappears arbitrarily late.
+The Intel parser classifies spaces and LF in one bounded 64-byte window after
+each timestamp, with scalar delimiter handling for long endpoints and tails.
+It decodes the known-length latency with SIMD decimal arithmetic and copies the
+hour label once per range. The index pass still uses eight-byte newline tests.
+The production data structures retain the preceding hour-ownership layout. Each hour has
+a hash map from borrowed endpoint bytes to a latency vector and
+5xx count. A small sampled hash accelerates lookups; the map still compares the
+entire endpoint for equality, so collisions cannot combine different endpoints.
+No per-line strings or endpoint copies are allocated.
 
-After parsing, endpoint dictionaries are merged and sorted once. Local IDs map
-to dense byte-sorted ranks. Workers claim hours and count/scatter their latencies
-into contiguous endpoint groups, then compute exact nearest-rank p50/p95/p99.
-Duplicate requests count independently; errors and ppm use integer arithmetic.
-Completed buffers are written in hour order, omitting empty groups.
+In the second pass, workers claim hours dynamically. One worker parses every
+indexed range for its hour, selects the exact nearest-rank p50/p95/p99, sorts
+endpoints bytewise, formats output, and frees the groups before claiming another
+hour. Latencies never need to be merged across workers. Completed byte buffers
+are written as soon as preceding hours are ready, preserving output order.
+Duplicate requests all count. Error ppm uses integer arithmetic; empty input
+produces an empty file.
 
-Consumed block prefixes are returned with batched `madvise` calls as hours finish,
-so record pages can be reclaimed while output pages grow. A Release/Acquire
-completion flag proves each block's reader has finished; one reclamation lock
-protects the prefix cursors. Heavy input disorder can delay reclamation, but
-never permits dropping a record. Linux arena mappings disable huge-page backing
-with a hint so sparsely used blocks need not charge whole huge pages.
-
-Unsafe code covers Unix mappings, SIMD loads and exclusive arena writes followed
-by read-only block traversal. The mapping guard outlives all workers and borrowed
-endpoint bytes; each hour has exactly one consumer. `a_ingest.py` and `run.py`
-remain byte-identical correctness oracles.
-
-The compact-record pipeline was informed by
-[Cache Me's public scored A implementation](https://github.com/manusingh090/speed-demon-2026-entry/blob/836c19e46966bcbe9e91e79883f148059402f1c9/track-a/main.cpp).
+Unsafe operations wrap Unix mapping and bounded Intel SIMD loads. A guard owns
+the mapping and outlives all scoped threads and borrowed keys. SIMD parsing
+uses the scoring contract's AVX2-capable CPU; loads require a full input window,
+and latency loads remain inside the current complete record. Other targets use
+the scalar parser.
+`a_ingest.py` and `run.py` remain byte-identical correctness oracles.
 
 The Docker build enables `target-cpu=native`, which the published board rules
 route to a build on the scoring machine. No CPU features are assumed from this
@@ -49,10 +45,6 @@ Apple Silicon development host.
 None.
 
 ## Run and verify
-
-The current candidate skips local runtime tests and benchmarks as requested by
-the user. Formatting and native/x86_64 Linux compilation checks passed. The
-commands below are available for verification; they were not run for this step.
 
 From the repository root, generate the public dataset using the organisers'
 [generator](https://github.com/hackathon-raptors/speed-demon-2026/blob/main/generators/a_ingest.py):
@@ -90,15 +82,16 @@ deliberate sampled-hash collisions. A regression test covers long runs that
 revisit hours, uneven hour sizes, and empty hours between output groups. Tests
 live outside the track's build context.
 
-The preceding implementation's historical best is 75.973214 points, 49.090 ms
-and 19,177,472 peak bytes. The compact candidate awaits its Intel measurement;
-see [PERF.md](PERF.md).
+Last measured live-board score: **75.758840**, runtime **0.048427 s**,
+peak memory **20.84 MB**, with all gates passed. See [PERF.md](PERF.md).
 
 ## With another 24 hours
 
-Measure the compact pipeline on Intel, then profile parsing, dictionary
-reconciliation, percentile selection and output. Compare any runtime gain with
-its extra source and peak memory, including seeds with highly disordered hours.
+Measure hour ownership on the scoring architecture, then profile indexing,
+map lookups and output separately. Compare endpoint interning and denser range
+storage with their extra source size and memory, including heavily disordered
+inputs where the range index grows. Validate each candidate on several
+generator seeds and retain only measured improvements.
 
 ## Profile-guided experiment
 
@@ -106,3 +99,10 @@ Build-time PGO trained on generated sample seeds 7, 19 and 103 passed correctnes
 on ARM64 and AMD64. Intel board scores fell after memory and source costs, so
 the ordinary native release build is retained. The reproducible experiment is
 preserved at commit `3b74c524ad473105b5bfa934855984fe98336eea`; see [PERF.md](PERF.md).
+
+
+The compact-record A and predecessor-aware D trials at `330dbc3` passed the
+Intel correctness gates but lost machine points. Their sources and measurements
+are preserved outside the production folders; see [PERF.md](PERF.md). Production D uses the preceding implementation; production A isolates the
+SIMD parser inside its preceding hour-ownership layout. Local runtime tests
+are skipped at the user's request; Intel results determine the selection.

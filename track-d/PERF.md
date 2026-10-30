@@ -291,7 +291,7 @@ checks on both full seeds pass. Complete Rust sources, raw rows and reproduction
 [`experiments/2026-10-30-compact-graphs/`](../experiments/2026-10-30-compact-graphs/).
 
 
-## Step 8: predecessor-aware queue (2026-10-30; Intel trial)
+## Step 8: predecessor-aware queue (2026-10-30; measured and reverted)
 
 Carry each discovered node's predecessor in its heap entry. Ordinary entries
 pack distance22/node21/parent21 into the existing eight-byte common heap word;
@@ -308,4 +308,19 @@ speedup claim. No reachability preprocessing or graph mutation is introduced.
 Baseline: `run-6082ca272e2a` at `c17406b`, T=0.316613 s,
 M=97,452,032 bytes, S=361, D=1, points=61.713950. Local runtime tests and
 benchmarks are skipped per user instruction. Formatting and native/x86_64 Linux
-compilation checks pass; the Intel correctness gates and score are pending.
+compilation checks pass.
+
+The Intel trial `run-45eac4be08b8` at `330dbc3` passed every gate:
+T=0.326405 s, M=97,144,832 bytes, S=384, D=1, K=16.746174,
+points=61.195780. The immediately preceding unchanged-production repeat,
+`run-335888525673` at `a30d6d1`, measured 0.309189 s, 98,488,320 bytes,
+S=361 and 61.925629 points. The candidate loses **0.729849 points**:
+-0.588319 time, +0.059650 memory, -0.201180 source. Its measured memory and
+source would require time below 0.305185 s to break even against that repeat.
+
+Restore the previous production queue. Fewer distance-map probes did not
+translate into lower end-to-end time; predecessor packing and merging heap
+minima add work, but its exact contribution was not profiled on Intel.
+Preserve [`d-predecessor.rs`](../experiments/2026-10-30-rejected-pipelines/d-predecessor.rs)
+and [raw Intel evidence](../experiments/2026-10-30-rejected-pipelines/intel-330dbc3.json)
+for subsequent investigation.

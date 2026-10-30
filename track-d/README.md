@@ -20,12 +20,9 @@ ordering, geometry, or input seed is assumed.
 
 Up to twelve query workers share the graph and take queries from an atomic work
 counter. Each query uses bidirectional Dijkstra with uint64 distances and binary
-heaps. Queue entries carry a predecessor. When distance fits 22 bits and both node
-IDs fit 21 bits, all three fields occupy one uint64; every larger value uses
-a full-width tuple. Both heap minima are compared, including small-distance
-entries with wide node IDs, to preserve exact ordering. During expansion an edge
-back to the predecessor is skipped before the distance-map probe: nonnegative
-weights prove it cannot improve the predecessor's already known distance.
+heaps. Queue entries with distances up to uint32 maximum pack the distance and
+node into one uint64; larger distances use a separate full-width heap. All
+compact entries precede full-width entries, preserving the exact minimum.
 Expand the smaller frontier, then stop when the sum of the two minimum
 queue distances cannot improve the best complete path found. An empty forward
 adjacency at the source or reverse adjacency at the target immediately proves
@@ -48,11 +45,6 @@ The Dockerfile uses digest-pinned allowlisted images, builds offline, and enable
 `target-cpu=native`, which routes the board build onto its scoring CPU.
 
 ## Verification
-
-For this predecessor candidate, local runtime tests and benchmarks are skipped
-at the user's request. Formatting and native/x86_64 Linux compilation checks
-passed; the official Intel correctness gate and measurements are pending.
-The commands below are available for verification.
 
 From the repository root:
 
@@ -99,3 +91,9 @@ Packed adjacency and sequential reverse construction are compared separately in
 `experiments/2026-10-30-compact-graphs/`. Sequential construction lowers its
 payload, but query scratch becomes the observed peak and serial traversal costs
 too much in the recorded full-scale local trials.
+
+
+The compact-record A and predecessor-aware D trials at `330dbc3` passed the
+Intel correctness gates but lost machine points. Their sources and measurements
+are preserved outside the production folders; see [PERF.md](PERF.md). Production
+uses the preceding implementation.
