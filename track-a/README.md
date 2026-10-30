@@ -62,19 +62,20 @@ cargo fmt --manifest-path track-a/Cargo.toml --check
 cargo clippy --manifest-path track-a/Cargo.toml --offline --all-targets -- -D warnings
 ```
 
-The eight differential tests build the release executable and compare its complete
+The nine differential tests build the release executable and compare its complete
 output with the Python reference. They cover the spec's worked example, empty
 input, percentile rank rounding, repeated ranks and values, uint32 extremes,
 every legal status, integer ppm, all 72 hour boundaries in reverse order,
 endpoint byte ordering and maximum length, all methods, duplicates, and three
-randomized seeds, partition boundaries, and groups spanning every worker. Tests live outside the track's build context.
+randomized seeds, partition boundaries, groups spanning every worker, and
+deliberate sampled-hash collisions. Tests live outside the track's build context.
 
-See [PERF.md](PERF.md) for local measurements and pending live-board evidence.
+Live-board score: **73.210288**, runtime **0.048674 s**, peak memory **41.30 MB**,
+with all gates passed. See [PERF.md](PERF.md) for the run ID and measurements.
 
 ## With another 24 hours
 
-Obtain a live-board run ID for this baseline, then profile parsing, map lookups
-and output separately on the scoring architecture. Compare endpoint interning
+Profile parsing, map lookups and output separately on the scoring architecture. Compare endpoint interning
 and dense hour storage with the current maps, and benchmark chunk parsing and
 parallelism against their extra source size and memory. Validate each candidate
 on several generator seeds and retain only measured improvements.

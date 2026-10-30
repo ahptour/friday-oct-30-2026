@@ -6,6 +6,7 @@ Every step from the reference to your final version, each with the live-board ru
 |---|---|---|---|---|---|
 | 0 | The reference, unchanged | | 32.05 | 228 | 0 |
 | 1 | Rust std-only streaming parser, byte-prefix hours, buffered output, exact percentile selection | run-5ae87f32d8ff | 0.705724 | 41.951232 | 46.671522 |
+| 2 | Parallel mmap parsing, borrowed keys, sampled hash, word delimiter scanning and parallel output | run-595acb9bbcc2 | 0.048674 | 41.299968 | 73.210288 |
 
 Step 0 contains the organisers' published scoring-box reference figures. Step 1
 was measured at commit `0b08b305a17153c8831acca9f29a8c0595dbc7a0`; the board
@@ -67,8 +68,20 @@ compact-record/count-and-scatter experiment reached about 25 ms, but used about
 retain maps for the first live measurement. These are local diagnostics, not
 cgroup memory measurements or board timings.
 
-Eight differential tests pass. Full seed 1 matches the published hash and full
+Nine differential tests pass, including deliberate sampled-hash collisions.
+Full seed 1 matches the published hash and full
 seed 42 matches the independent Python reference:
 `b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1`.
-The offline ARM64 container check passes. The live-board run is pending;
-target score is at least 69.413, which local tests alone cannot confirm.
+Offline ARM64 and x86-64 container checks pass.
+
+Live-board run `run-595acb9bbcc2`, commit
+`d13d98c971a3754b5838168497e78340723ca0db`, completed at 2026-10-30 15:59:01 UTC:
+all gates passed, T=0.048674 s, M=41,299,968 bytes, S=235, D=1,
+K=29.120964, points=73.210288. This exceeds the requested 69.413 target,
+improves runtime by 14.50x over step 1, and slightly reduces peak memory.
+Build time was 7.894 s. The final holdout scoring run remains separate.
+
+The additional collision test uses distinct 100-byte endpoints with identical
+sampled first/middle/last words. Partition tests include inputs around the
+64 KiB worker threshold and large globally shuffled groups. They were added
+after the measured commit without changing its production implementation.

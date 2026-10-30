@@ -141,7 +141,8 @@ class TrackATest(unittest.TestCase):
     def test_parallel_chunk_edges_and_fewer_records_than_workers(self):
         # Equal-size lines put some byte partitions exactly on a line start;
         # unequal lengths put them inside timestamps, endpoints and numbers.
-        for count in [*range(1, 25), 71, 72, 73, 143, 144, 145]:
+        for count in [*range(1, 25), 71, 72, 73, 143, 144, 145,
+                      1023, 1024, 1025, 4095, 4096, 4097, 8191, 8192, 8193]:
             with self.subTest(count=count, layout="fixed"):
                 rows = [row(i % 72, f"/item/{i:04}", 500, 4_000_000_000 + i)
                         for i in range(count)]
@@ -165,6 +166,22 @@ class TrackATest(unittest.TestCase):
             for hour, endpoint in groups:
                 latency = [0, 4294967295, block * 1000 + hour][block % 3]
                 rows.append(row(hour, endpoint, [200, 499, 500, 599][block % 4], latency))
+        self.check_rows(rows)
+
+    def test_hash_collisions_preserve_exact_endpoint_identity(self):
+        # These 100-byte endpoints share the first, middle and last eight bytes
+        # sampled by FastHasher. HashMap must still compare the entire key.
+        endpoints = ["/" + "x" * 19 + a + "x" * 54 + b + "x" * 24
+                     for a, b in [("a", "a"), ("A", "a"), ("_", "a"),
+                                  ("a", "A"), ("a", "_"), ("a", "{")]]
+        rows = []
+        for block in range(5):
+            for hour in range(72):
+                for index, endpoint in enumerate(endpoints):
+                    latency = [0, 4294967295, index * 1000 + hour][block % 3]
+                    status = [100, 200, 499, 500, 599][(block + index) % 5]
+                    rows.append(row(hour, endpoint, status, latency))
+        Random(50).shuffle(rows)
         self.check_rows(rows)
 
 
