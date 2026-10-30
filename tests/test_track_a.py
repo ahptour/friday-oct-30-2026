@@ -138,6 +138,35 @@ class TrackATest(unittest.TestCase):
                 rng.shuffle(rows)
                 self.check_rows(rows)
 
+    def test_parallel_chunk_edges_and_fewer_records_than_workers(self):
+        # Equal-size lines put some byte partitions exactly on a line start;
+        # unequal lengths put them inside timestamps, endpoints and numbers.
+        for count in [*range(1, 25), 71, 72, 73, 143, 144, 145]:
+            with self.subTest(count=count, layout="fixed"):
+                rows = [row(i % 72, f"/item/{i:04}", 500, 4_000_000_000 + i)
+                        for i in range(count)]
+                self.check_rows(rows)
+            with self.subTest(count=count, layout="variable"):
+                rows = [row(i % 72, "/" + "a" * (i % 125),
+                            499 if i % 2 else 599, i if i % 3 else 4294967295,
+                            "GET" if i % 2 else "OPTIONS")
+                        for i in range(count)]
+                self.check_rows(rows)
+
+    def test_parallel_merge_of_groups_across_the_entire_file(self):
+        rng = Random(2026)
+        endpoints = ["/", LONGEST] + [f"/item/{i}/" + "x" * i for i in range(31)]
+        groups = [(hour, endpoint) for hour in range(72) for endpoint in endpoints]
+        rows = []
+        # Every block spans all hours and endpoints. Different blocks have
+        # different latency distributions, so local percentiles cannot be merged.
+        for block in range(16):
+            rng.shuffle(groups)
+            for hour, endpoint in groups:
+                latency = [0, 4294967295, block * 1000 + hour][block % 3]
+                rows.append(row(hour, endpoint, [200, 499, 500, 599][block % 4], latency))
+        self.check_rows(rows)
+
 
 if __name__ == "__main__":
     unittest.main()

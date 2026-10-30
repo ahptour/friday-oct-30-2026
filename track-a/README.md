@@ -4,28 +4,31 @@ The task, the input files and the exact output format are in the [spec](https://
 
 ## Approach
 
-The Rust executable streams `requests.log` through a 256 KiB buffered reader,
-reusing one line buffer. The spec guarantees a fixed-width UTC timestamp, so its
-first 13 bytes identify the hour directly, including across the month boundary.
-No date parser or string conversion is needed.
+The Rust executable maps `requests.log` read-only and splits it at newline
+boundaries among up to 12 workers. Each worker parses bytes directly into 72
+hour buckets. The fixed 72-hour date span is part of the specification for every
+seed; endpoint names and results are always discovered from the input.
 
-A sorted map holds the hours; each hour has a hash map keyed by exact endpoint
-bytes. Keys are allocated only for new groups. Each group stores its latencies as
-`u32` values and counts statuses starting with `5`. Every request is processed,
-including duplicate lines, and groups stay available until EOF because the spec
-does not bound input disorder.
+Space delimiters are found eight bytes at a time using integer byte tests.
+Each hour has a hash map from borrowed endpoint bytes to a latency vector and
+5xx count. A small sampled hash accelerates lookups; the map still compares the
+entire endpoint for equality, so collisions cannot combine different endpoints.
+No per-line strings or endpoint copies are allocated.
 
-Three calls to `select_nth_unstable` find the exact nearest-rank p50, p95 and p99,
-progressively narrowing the remaining slice instead of sorting every latency.
-The pivot stays in that slice to handle equal ranks in small groups. Error rates
-use `u64` integer arithmetic. Output walks hours chronologically, sorts endpoints
-by byte order, and writes only `summary.txt`, including a final LF per row. Empty
-input produces a zero-byte output.
+After parsing, a second parallel phase merges all contributions for each hour,
+selects the exact nearest-rank p50/p95/p99, sorts endpoints bytewise, and formats
+output. Keeping all groups until parsing completes supports arbitrarily
+disordered input and duplicate requests. Output buffers are written in hour
+order. Error ppm uses integer arithmetic; empty input produces an empty file.
 
-The implementation uses safe Rust and one thread. Memory grows with the number
-of input latencies and observed groups; it does not retain the input file.
-`a_ingest.py` and `run.py` remain byte-identical to the starter as a correctness
-oracle; the runtime image contains only the Rust executable and Debian runtime.
+The only unsafe operations are the Unix `mmap`/`munmap` calls and creating a
+read-only slice from a successful mapping. A guard owns the mapping and outlives
+all scoped threads and borrowed keys. Parsing itself uses checked slices.
+`a_ingest.py` and `run.py` remain byte-identical correctness oracles.
+
+The Docker build enables `target-cpu=native`, which the published board rules
+route to a build on the scoring machine. No CPU features are assumed from this
+Apple Silicon development host.
 
 ## Dependencies
 
@@ -59,12 +62,12 @@ cargo fmt --manifest-path track-a/Cargo.toml --check
 cargo clippy --manifest-path track-a/Cargo.toml --offline --all-targets -- -D warnings
 ```
 
-The six differential tests build the release executable and compare its complete
+The eight differential tests build the release executable and compare its complete
 output with the Python reference. They cover the spec's worked example, empty
 input, percentile rank rounding, repeated ranks and values, uint32 extremes,
 every legal status, integer ppm, all 72 hour boundaries in reverse order,
 endpoint byte ordering and maximum length, all methods, duplicates, and three
-randomized seeds. Tests live outside the track's build context.
+randomized seeds, partition boundaries, and groups spanning every worker. Tests live outside the track's build context.
 
 See [PERF.md](PERF.md) for local measurements and pending live-board evidence.
 

@@ -5,11 +5,12 @@ Every step from the reference to your final version, each with the live-board ru
 | Step | Change | Run ID | T (s) | M (MB) | Points |
 |---|---|---|---|---|---|
 | 0 | The reference, unchanged | | 32.05 | 228 | 0 |
-| 1 | Rust std-only streaming parser, byte-prefix hours, buffered output, exact percentile selection | Pending | | | |
+| 1 | Rust std-only streaming parser, byte-prefix hours, buffered output, exact percentile selection | run-5ae87f32d8ff | 0.705724 | 41.951232 | 46.671522 |
 
 Step 0 contains the organisers' published scoring-box reference figures. Step 1
-has no live-board run yet; its scoring columns remain blank until an actual run
-ID is available. No local timing is a board result.
+was measured at commit `0b08b305a17153c8831acca9f29a8c0595dbc7a0`; the board
+reported S=107, D=1, K=8.578877, and all gates passed. Local timings below are
+separate from board results.
 
 ## Step 1: establish a correct Rust baseline (2026-10-30)
 
@@ -49,3 +50,25 @@ specific coverage for percentile rounding, equal ranks, zero and uint32-max
 latencies, duplicate requests, hour and month boundaries, endpoint byte order,
 all legal statuses and three randomized seeds. `cargo fmt --check` and Clippy
 with warnings denied pass.
+
+## Step 2: parallel mapped parsing (2026-10-30)
+
+Replace the serial line reader and BTreeMap lookup with read-only mmap,
+newline-aligned chunks, 72 direct hour buckets per worker, borrowed endpoint
+keys, eight-byte delimiter scanning, and a sampled hash with full-key equality.
+Merge groups and select/format percentiles in parallel by hour. The container
+build now targets the scoring CPU using the organisers' supported native build
+route. There are still zero runtime dependencies.
+
+In sequential warm native comparisons on this host, the original baseline took
+about 306 ms and the parallel map version about 29 ms end to end. A separate
+compact-record/count-and-scatter experiment reached about 25 ms, but used about
+53 MB native physical footprint versus 47 MB for maps, plus more source lines;
+retain maps for the first live measurement. These are local diagnostics, not
+cgroup memory measurements or board timings.
+
+Eight differential tests pass. Full seed 1 matches the published hash and full
+seed 42 matches the independent Python reference:
+`b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1`.
+The offline ARM64 container check passes. The live-board run is pending;
+target score is at least 69.413, which local tests alone cannot confirm.
