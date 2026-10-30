@@ -220,7 +220,7 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
     let answers: Vec<_> = queries.iter().map(|_| AtomicI64::new(-1)).collect();
     let next = AtomicUsize::new(0);
     thread::scope(|scope| {
-        for _ in 0..workers.min(queries.len()).min(6) {
+        for _ in 0..workers.min(queries.len()) {
             scope.spawn(|| {
                 let mut searches = [Search::new(), Search::new()];
                 loop {

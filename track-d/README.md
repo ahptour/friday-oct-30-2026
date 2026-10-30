@@ -10,7 +10,7 @@ workers. Build compact forward and reverse CSR adjacency arrays concurrently.
 Both preserve parallel edges, duplicates, zero weights and self-loops. No node
 ordering, geometry, or input seed is assumed.
 
-Up to six query workers share the graph and take queries from an atomic work
+Up to twelve query workers share the graph and take queries from an atomic work
 counter. Each query uses bidirectional Dijkstra with uint64 distances and binary
 heaps. Expand the smaller frontier, then stop when the sum of the two minimum
 queue distances cannot improve the best complete path found. An empty forward
