@@ -45,3 +45,45 @@ Verification:
 
 No external runtime dependencies or precomputed answers are used. The final
 holdout seed is separate from these correctness checks.
+
+
+## Step 2: narrower country IDs and a smaller exact name table (2026-10-30)
+
+The frozen specification permits 240 countries plus `_UNMATCHED`, so country
+IDs 0–240 fit in `u8`. Narrow the million-entry region lookup and country-code
+lookup from `u16` to `u8`; retain checked region access for unknown IDs. Reduce
+the name-table cap from 2^18 to 2^17 entries. This removes 6,260,456 bytes of
+allocated table payload at full scale. The cap is a capacity choice, not a
+name-count assumption: full name equality, bounded probing and the exact mutex
+map remain intact when more distinct names or collisions reach overflow.
+
+Seven alternating trials per variant used offline Docker release builds on
+local Linux ARM64, CPUs 0–11, prewarmed input, the board sandbox, exec-to-exit
+time and cgroup peak memory. Each warm summary excludes that variant's first
+trial. All 21 full-seed-1 output hashes matched.
+
+| Variant | Warm median (s) | Worst warm peak (bytes) | Local point delta vs baseline |
+|---|---:|---:|---:|
+| Retained baseline (`u16`, 2^18) | 0.050803877 | 18,616,320 | 0 |
+| `u8`, 2^18 | 0.050094316 | 14,721,024 | +1.172 |
+| `u8`, 2^17 | 0.051313210 | 9,449,472 | +2.837 |
+
+Payload savings and peak-memory differences are different measurements; allocator
+behavior also affects the peak. These local estimates use the actual log formula,
+with unchanged counted source and dependencies, and do not establish Intel gains.
+Select the smaller exact table for a board measurement. No PGO is enabled.
+
+Six differential suites pass, including all 240 country IDs across every word
+of the country bitset, unknown regions above the dense lookup, deliberately
+colliding names, and exact overflow counting. Formatting and Clippy with warnings
+denied pass. Offline ARM64 Docker and the board sandbox match the published
+full-seed-1 output. Full seed 42 also matches the unchanged Python reference:
+`54ed4d6bd196c17dda213cfcc7b79ec6732f06d80b1b3cb444e7468dd438e517`.
+Raw samples and reproducible candidates are in
+`experiments/2026-10-30-score-tradeoffs/` at the repository root.
+
+The immediately preceding unchanged-code board repeat was `run-c342f5384aee`
+at `e2db239`: T=0.078485 s, M=17,092,608 bytes, S=365, D=1,
+K=20.873513, machine points=65.979778; all gates passed. That repeat is not
+an optimization step. The new candidate's Intel result will be recorded after
+its submitted commit completes.

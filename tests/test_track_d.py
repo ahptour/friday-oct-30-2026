@@ -92,6 +92,51 @@ class TrackDTest(unittest.TestCase):
                 queries += queries[::7]
                 self.check_graph(n, edges, queries)
 
+    def test_sparse_endpoints_directed_contraction(self):
+        # All-pairs queries protect every vertex and cannot exercise contraction.
+        # These paths leave their internal junctions available for elimination.
+        cases = [
+            (6, [(i, i + 1, 4294967295) for i in range(5)],
+             [(0, 5), (5, 0), (0, 0)], [21474836475, -1, 0]),
+            (6, [(0, 1, 3), (1, 2, 5), (3, 1, 2), (1, 4, 7)],
+             [(0, 2), (3, 4), (2, 3), (5, 5)], [8, 9, -1, 0]),
+            (7, [(0, 1, 0), (1, 2, 0), (2, 0, 0), (2, 3, 0),
+                 (4, 5, 0), (5, 6, 0), (6, 4, 0)],
+             [(0, 3), (3, 0)], [0, -1]),
+            (5, [(0, 1, 8), (0, 1, 2), (1, 2, 3), (2, 1, 9),
+                 (1, 0, 4), (0, 2, 5), (2, 3, 6), (3, 4, 7)],
+             [(0, 4), (4, 0), (2, 0)], [18, -1, 13]),
+        ]
+        for n, edges, queries, expected in cases:
+            for reverse in [False, True]:
+                with self.subTest(n=n, reverse=reverse):
+                    self.check_graph(n, edges[::-1] if reverse else edges,
+                                     queries, expected)
+
+    def test_sparse_endpoints_shortcut_minima_and_protected_leaves(self):
+        for direct in [2, 5, 9]:
+            edges = [(0, 1, 2), (1, 2, 3), (0, 2, direct),
+                     (2, 3, 4), (3, 4, 5), (6, 5, 1)]
+            self.check_graph(7, edges, [(0, 4), (4, 0), (5, 6), (6, 5)],
+                             [min(direct, 5) + 9, -1, -1, 1])
+
+    def test_random_graphs_sparse_endpoints_and_edge_orders(self):
+        for seed in range(20):
+            rng = Random(seed + 1000)
+            n = 70
+            edges = [(i, i + 1, rng.choice([0, 1, 4294967295]))
+                     for i in range(n - 1)]
+            edges += [(rng.randrange(n), rng.randrange(n),
+                       rng.choice([0, 4, 4294967295])) for _ in range(25)]
+            edges += edges[::13]
+            endpoints = rng.sample(range(n), 5)
+            queries = [(rng.choice(endpoints), rng.choice(endpoints))
+                       for _ in range(12)]
+            for order in range(2):
+                rng.shuffle(edges)
+                with self.subTest(seed=seed, order=order):
+                    self.check_graph(n, edges, queries)
+
 
 if __name__ == '__main__':
     unittest.main()

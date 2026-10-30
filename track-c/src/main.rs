@@ -107,10 +107,11 @@ fn field<'a>(input: &'a [u8], pos: &mut usize) -> (&'a [u8], u64) {
     (&input[start..start + length], length as u64 - escapes)
 }
 
-fn load_regions(path: &Path) -> io::Result<(Vec<u16>, Vec<Vec<u8>>)> {
+fn load_regions(path: &Path) -> io::Result<(Vec<u8>, Vec<Vec<u8>>)> {
     let data = fs::read(path)?;
-    let mut lookup = vec![0u16; 1_000_000];
-    let mut country_ids = vec![0u16; 26 * 26 * 26];
+    // The frozen contract has at most 240 countries, plus bucket zero.
+    let mut lookup = vec![0u8; 1_000_000];
+    let mut country_ids = vec![0u8; 26 * 26 * 26];
     let mut keys = vec![b"_UNMATCHED".to_vec()];
     let mut pos = find(&data, 0, b'\n') + 1;
     while pos < data.len() {
@@ -120,7 +121,7 @@ fn load_regions(path: &Path) -> io::Result<(Vec<u16>, Vec<Vec<u8>>)> {
             .iter()
             .fold(0usize, |value, &byte| value * 26 + usize::from(byte - b'A'));
         if country_ids[code] == 0 {
-            country_ids[code] = keys.len() as u16;
+            country_ids[code] = keys.len() as u8;
             keys.push(country.to_vec());
         }
         lookup[id] = country_ids[code];
@@ -199,7 +200,7 @@ fn parse<'a>(
     names: &Names<'a>,
     start: usize,
     end: usize,
-    lookup: &[u16],
+    lookup: &[u8],
     countries: usize,
 ) -> Vec<Group> {
     let mut groups = vec![Group::default(); countries];
@@ -325,9 +326,11 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
         bounds.push(pos);
     }
     bounds.push(len);
+    // Cap the common-name table; full byte equality and the overflow map keep
+    // distinct counting exact even when the table is crowded.
     let names = Names {
         slots: std::iter::repeat_with(Entry::default)
-            .take((len / 64).next_power_of_two().clamp(1024, 1 << 18))
+            .take((len / 64).next_power_of_two().clamp(1024, 1 << 17))
             .collect(),
         overflow: Mutex::new(HashMap::default()),
     };

@@ -13,7 +13,8 @@ commas, doubled quotes, embedded LF, empty values, mixed LF/CRLF, and BOMs
 at record boundaries. Eight-byte delimiter searches avoid scanning every
 ordinary character individually.
 
-`regions.csv` becomes a dense region-to-country lookup. Unknown ids map to
+`regions.csv` becomes a dense region-to-country lookup with one-byte IDs: the
+frozen contract allows 240 countries plus `_UNMATCHED`. Unknown ids map to
 `_UNMATCHED`. Each worker maintains its own counts, sums, extrema and decoded
 byte lengths in integer arithmetic.
 
@@ -23,7 +24,9 @@ A successful first setting of a country's bit increments the worker's local
 distinct count. This keeps one name entry globally, rather than one per country
 or per input occurrence. A sampled hash accelerates lookups, but every potential
 match compares the complete payload bytes. Probes are bounded; an ordinary
-mutex-protected hash map handles overflow and collisions exactly.
+mutex-protected hash map handles overflow and collisions exactly. The main
+table is capped at 131,072 entries to trade a little probing for lower peak
+memory; this does not bound the number of distinct names the solver accepts.
 
 CSV escaping is canonical, so equality of the encoded payloads is equivalent
 to equality after unescaping. The two empty spellings both produce an empty
@@ -59,13 +62,13 @@ python3 check.py c --data data/c/full-seed1 --expected d8088b1cd42ba1338b1345b10
 ```
 
 Native development accepts `--data DIRECTORY --out DIRECTORY`; defaults are
-`/data` and `/out`. Five differential tests cover the worked example, quote
+`/data` and `/out`. Six differential suites cover the worked example, quote
 escaping, multiline notes, BOM placement and literal BOM bytes, empty values,
 trailing spaces, negative cents, 64-bit sums, unknown regions, chunk boundaries,
 header-only input, omitted final terminator, and deliberate sampled-hash
-collisions that reach the overflow map.
+collisions that reach the overflow map, and all 240 country IDs.
 
-Full seed 1 matches the published output hash. Sample seed 42 matches an
+Full seed 1 matches the published output hash. Sample and full seed 42 match an
 independently executed Python reference. Local measurements and live-board
 results are recorded in [PERF.md](PERF.md).
 

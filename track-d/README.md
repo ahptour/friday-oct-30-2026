@@ -71,3 +71,13 @@ Build-time PGO trained on generated sample seeds 7, 19 and 103 passed correctnes
 on ARM64 and AMD64. Intel board scores fell after memory and source costs, so
 the ordinary native release build is retained. The reproducible experiment is
 preserved at commit `3b74c524ad473105b5bfa934855984fe98336eea`; see [PERF.md](PERF.md).
+
+
+## Query-aware graph experiments
+
+Exact degree-two elimination and input-text-offset CSR were separately tested
+with sparse protected endpoints and full-width arithmetic. Both preserved
+answers but their preprocessing/traversal cost outweighed memory savings in
+local ARM64 trials. Production retains the simpler CSR baseline. See
+[PERF.md](PERF.md) and the reproducible sources under
+`experiments/2026-10-30-score-tradeoffs/` at the repository root.

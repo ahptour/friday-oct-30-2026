@@ -101,6 +101,21 @@ class TrackCTest(unittest.TestCase):
                                rng.choice([3, 7, 12, 20, 9999999]), '-0.05'))
         self.check_bytes(b''.join(rows))
 
+    def test_all_country_ids_and_unknown_regions(self):
+        # Full/sample permit 240 countries plus _UNMATCHED, fitting one byte.
+        # Repeated names exercise every word of the four-word country bitset.
+        codes = [chr(65 + i // 676) + chr(65 + i // 26 % 26) + chr(65 + i % 26)
+                 for i in range(240)]
+        regions = b'region_id,country\n' + ''.join(
+            f'{i + 1},{code}\n' for i, code in enumerate(codes)).encode()
+        rows = [HEADER]
+        for repeat in range(3):
+            for i in range(240):
+                rows.append(record(repeat * 240 + i + 1, 'Shared', '', i + 1))
+        rows += [record(1000, 'Shared', '', 999999),
+                 record(1001, 'Shared', '', 4000000)]
+        self.check_bytes(b''.join(rows), regions)
+
 
 if __name__ == '__main__':
     unittest.main()

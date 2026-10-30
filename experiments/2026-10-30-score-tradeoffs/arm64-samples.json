@@ -1,0 +1,442 @@
+{
+  "c-base": [
+    {
+      "trial": 0,
+      "seconds": 0.046956217,
+      "memory": 15876096,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 1,
+      "seconds": 0.05082846,
+      "memory": 18616320,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 2,
+      "seconds": 0.050596878,
+      "memory": 14987264,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 3,
+      "seconds": 0.058432948,
+      "memory": 15134720,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 4,
+      "seconds": 0.050779294,
+      "memory": 15650816,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 5,
+      "seconds": 0.053680664,
+      "memory": 15777792,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 6,
+      "seconds": 0.045733636,
+      "memory": 15458304,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    }
+  ],
+  "c-u8": [
+    {
+      "trial": 0,
+      "seconds": 0.046820301,
+      "memory": 14524416,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 1,
+      "seconds": 0.047931132,
+      "memory": 14532608,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 2,
+      "seconds": 0.0522575,
+      "memory": 13840384,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 3,
+      "seconds": 0.054073705,
+      "memory": 14323712,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 4,
+      "seconds": 0.044822928,
+      "memory": 14721024,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 5,
+      "seconds": 0.052553958,
+      "memory": 14389248,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 6,
+      "seconds": 0.047390341,
+      "memory": 14520320,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    }
+  ],
+  "c-half": [
+    {
+      "trial": 0,
+      "seconds": 0.053801122,
+      "memory": 8355840,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 1,
+      "seconds": 0.049272754,
+      "memory": 9035776,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 2,
+      "seconds": 0.051143627,
+      "memory": 9277440,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 3,
+      "seconds": 0.053715081,
+      "memory": 9400320,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 4,
+      "seconds": 0.055765786,
+      "memory": 9093120,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 5,
+      "seconds": 0.051452751,
+      "memory": 9449472,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    },
+    {
+      "trial": 6,
+      "seconds": 0.051173669,
+      "memory": 9330688,
+      "sha256": "d8088b1cd42ba1338b1345b107b55db7b96ef1f5066f3ff64fd26a8912a0f536"
+    }
+  ],
+  "b-w12": [
+    {
+      "trial": 0,
+      "seconds": 0.264943744,
+      "memory": 286601216,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 1,
+      "seconds": 0.23296292,
+      "memory": 68775936,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 2,
+      "seconds": 0.235320666,
+      "memory": 68997120,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 3,
+      "seconds": 0.238339036,
+      "memory": 68886528,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 4,
+      "seconds": 0.249510268,
+      "memory": 68612096,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 5,
+      "seconds": 0.242124321,
+      "memory": 69066752,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 6,
+      "seconds": 0.241151699,
+      "memory": 68579328,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    }
+  ],
+  "b-w8": [
+    {
+      "trial": 0,
+      "seconds": 0.279642386,
+      "memory": 97697792,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 1,
+      "seconds": 0.281913758,
+      "memory": 57507840,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 2,
+      "seconds": 0.279761928,
+      "memory": 57397248,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 3,
+      "seconds": 0.282740048,
+      "memory": 58085376,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 4,
+      "seconds": 0.274504895,
+      "memory": 57597952,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 5,
+      "seconds": 0.276282267,
+      "memory": 57921536,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 6,
+      "seconds": 0.273740854,
+      "memory": 57901056,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    }
+  ],
+  "b-w6": [
+    {
+      "trial": 0,
+      "seconds": 0.365787708,
+      "memory": 51171328,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 1,
+      "seconds": 0.362662379,
+      "memory": 50528256,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 2,
+      "seconds": 0.349798108,
+      "memory": 50802688,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 3,
+      "seconds": 0.352397979,
+      "memory": 50384896,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 4,
+      "seconds": 0.359426634,
+      "memory": 50610176,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 5,
+      "seconds": 0.356590722,
+      "memory": 50503680,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 6,
+      "seconds": 0.349611692,
+      "memory": 50802688,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    }
+  ],
+  "b-w4": [
+    {
+      "trial": 0,
+      "seconds": 0.507768772,
+      "memory": 44982272,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 1,
+      "seconds": 0.498777703,
+      "memory": 44691456,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 2,
+      "seconds": 0.497778163,
+      "memory": 44937216,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 3,
+      "seconds": 0.498739536,
+      "memory": 45113344,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 4,
+      "seconds": 0.498014705,
+      "memory": 44564480,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 5,
+      "seconds": 0.501198533,
+      "memory": 45109248,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "trial": 6,
+      "seconds": 0.496412832,
+      "memory": 44486656,
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    }
+  ],
+  "d-base": [
+    {
+      "trial": 0,
+      "seconds": 0.176008427,
+      "memory": 135090176,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 1,
+      "seconds": 0.169492646,
+      "memory": 135905280,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 2,
+      "seconds": 0.165657944,
+      "memory": 138682368,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 3,
+      "seconds": 0.164196904,
+      "memory": 134922240,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 4,
+      "seconds": 0.162835448,
+      "memory": 134795264,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 5,
+      "seconds": 0.16443182,
+      "memory": 134942720,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 6,
+      "seconds": 0.164807112,
+      "memory": 134918144,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    }
+  ],
+  "d-contract": [
+    {
+      "trial": 0,
+      "seconds": 0.483344145,
+      "memory": 135639040,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 1,
+      "seconds": 0.487493429,
+      "memory": 134963200,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 2,
+      "seconds": 0.50939402,
+      "memory": 135217152,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 3,
+      "seconds": 0.490861758,
+      "memory": 135430144,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 4,
+      "seconds": 0.492017714,
+      "memory": 135213056,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 5,
+      "seconds": 0.489229926,
+      "memory": 134987776,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 6,
+      "seconds": 0.482083855,
+      "memory": 135270400,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    }
+  ],
+  "d-offset": [
+    {
+      "trial": 0,
+      "seconds": 0.474649492,
+      "memory": 85303296,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 1,
+      "seconds": 0.475646115,
+      "memory": 85344256,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 2,
+      "seconds": 0.480428065,
+      "memory": 84955136,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 3,
+      "seconds": 0.476702488,
+      "memory": 84455424,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 4,
+      "seconds": 0.491044674,
+      "memory": 83714048,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 5,
+      "seconds": 0.480598316,
+      "memory": 87232512,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    },
+    {
+      "trial": 6,
+      "seconds": 0.482187813,
+      "memory": 84246528,
+      "sha256": "a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e"
+    }
+  ]
+}

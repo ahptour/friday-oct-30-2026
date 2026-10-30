@@ -8,6 +8,7 @@
 | 3 | Compact queue entries with full-width fallback | run-b8e527b07f2c | 0.326074 | 171.425792 | 59.490467 |
 
 Steps 4 and 5 have board measurements. Step 5 was reverted after losing points.
+Step 6 evaluates graph reduction and mapped text offsets; neither is retained.
 
 ## Rust implementation, 2026-10-30
 
@@ -134,3 +135,76 @@ Runtime improved by about 1%, but memory and source costs outweighed it:
 PGO lost 0.150434 points. Restore the previous Docker build.
 The measured commit preserves the complete reproducible PGO experiment,
 including the unchanged generators and training scripts.
+
+
+## Step 6: query-aware contraction and text offsets (2026-10-30; rejected locally)
+
+Two independent candidates start from retained `e2db239`, without PGO.
+Production D remains unchanged. Keep A unchanged as well; a lower D score would
+not enter the team's best three, while C's table reduction benefits a counting
+track immediately.
+
+The contraction prototype reads queries first and protects every endpoint.
+It drops nonnegative self-loops, min-deduplicates parallel arcs, and serially
+eliminates unprotected vertices with at most two unique neighbors in the union
+of incoming and outgoing adjacency. Each incoming/outgoing pair creates its
+exact directed shortcut, excluding a return to the same neighbor. The arc slot
+to the eliminated vertex supplies space for the sole possible replacement;
+there is no separate heap-allocated map per vertex. Tombstones are compacted
+in place. Original edge entries remain eight bytes, with a sparse exact `u64`
+side map for shortcut weights above `u32::MAX`; distance additions saturate
+safely. Every shortcut represents a real directed walk of equal weight, and
+every path through an eliminated vertex has a replacement shortcut. Nonnegative
+cycles can be removed. Protected endpoint distances are therefore preserved.
+
+On full seed 1 this removes 615,583 vertices and leaves 3,711,163 directed arcs.
+One native diagnostic run recorded parse 49.5 ms, build 28.0 ms, contraction plus
+compaction 355.5 ms, and queries 58.3 ms. These phase measurements are a separate
+macOS diagnostic, not Linux or Intel evidence. They identify the serial
+preprocessing as a larger cost than the query work it removes.
+
+The independent text-offset candidate retains the read-only mapping through
+all queries and stores original line positions in forward/reverse CSR. Checked
+file size selects `u32` positions or an exact `u64` fallback. Two concurrent
+builders each count then scatter, reusing offsets as cursors, so no raw edge
+list remains allocated. Input lines are decoded again on traversal. Its index
+payload is 53,924,104 bytes at full seed 1; this excludes search/scratch,
+page tables and allocator slack and is not total memory.
+
+Seven alternating trials per variant used local Linux ARM64, CPUs 0–11, offline
+Docker native release builds, prewarmed input and the board sandbox. Exec-to-exit
+time includes all preprocessing; peak is cgroup `memory.peak`. Exclude each
+variant's first trial for these warm summaries. Every full-seed-1 hash matched.
+
+| Variant | Warm median (s) | Worst warm peak (bytes) | Local delta before source cost |
+|---|---:|---:|---:|
+| Baseline | 0.164619466 | 138,682,368 | 0 |
+| Degree-two contraction | 0.490045842 | 135,430,144 | -11.741 |
+| Text-offset CSR | 0.480513191 | 87,232,512 | -9.617 |
+
+Reject both: neither memory saving repays roughly tripled end-to-end time,
+even before extra formatted-source cost. The official static-tools image was
+not available locally, so no official candidate S or Intel score is claimed.
+Both sources visibly add code; source savings cannot rescue the result. There
+is no reason to submit these losing variants, try degree three with this
+mutation design, or combine their costs. A future contraction design needs to
+avoid the serial normalization/mutation pass or amortize it across many more
+queries. Text-backed random decimal parsing needs a substantially cheaper query
+path. The immediate next priority is C's small measured table improvement,
+then Intel B worker/scratch-layout experiments.
+
+Ten differential suites run against each candidate, explicitly selecting its
+own binary. New sparse-endpoint chains, wide shortcuts, one-way forks, zero
+cycles, components without endpoints, parallel minima in either input order,
+protected leaves, same-node queries, shortcut-vs-direct minima and randomized
+edge orders exercise elimination rather than protecting every vertex with
+all-pairs queries. Text-offset Rust unit tests cover width selection at the
+u32 boundary and matching narrow/wide adjacency decoding. See versioned sources,
+reproduction tooling and raw samples in
+`experiments/2026-10-30-score-tradeoffs/` at the repository root.
+
+The latest unchanged-baseline board repeat before this experiment was
+`run-8e2549a44195` at `e2db239`: all gates passed, T=0.357854 s,
+M=136,007,680 bytes, S=336, D=1, K=15.254961, points=59.170556.
+The best retained baseline remains the earlier 59.899443-point run. Single-run
+variation must not be mistaken for an algorithm change.
