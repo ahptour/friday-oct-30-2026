@@ -1,0 +1,296 @@
+{
+  "source": "https://s3.amazonaws.com/raptors.dev/speeddemon.dev/2026/board/board.json",
+  "generated_at": "2026-10-30T21:35:19Z",
+  "team": {
+    "team": "ahptour",
+    "slug": "ahptour-074fed",
+    "watch": {
+      "ok": true,
+      "error": null,
+      "head": "32c99460d3aef5c753752226418587137133a316",
+      "checked_at": "2026-10-30T21:34:26Z"
+    },
+    "queue": {
+      "in_flight": null,
+      "queued": null
+    },
+    "tracks": {
+      "a": {
+        "registered": true,
+        "best": {
+          "run_id": "run-397ce937e50d",
+          "commit": "e2db23906110cb7dad9b86a79c5cf80a94a94334",
+          "pushed_at": "2026-10-30T18:38:09Z",
+          "dispatched_at": "2026-10-30T18:39:45Z",
+          "started_at": "2026-10-30T18:39:54Z",
+          "ended_at": "2026-10-30T18:39:54Z",
+          "queue_latency_s": 104.9,
+          "ok": true,
+          "stage": "scored",
+          "gates": {
+            "check": true,
+            "build": true,
+            "correctness": true,
+            "timeout": true,
+            "sandbox": true
+          },
+          "T_s": 0.049329,
+          "M_bytes": 19775488,
+          "S": 272,
+          "D": 1,
+          "K": 32.790079,
+          "points": 75.787123,
+          "static_axes": "measured",
+          "timeout_s": 96.142,
+          "build_s": 0.554,
+          "image_bytes": 118159955,
+          "failure": null,
+          "lang": [
+            "Rust"
+          ]
+        },
+        "latest": {
+          "run_id": "run-c25d94d03009",
+          "commit": "32c99460d3aef5c753752226418587137133a316",
+          "pushed_at": "2026-10-30T21:33:22Z",
+          "dispatched_at": "2026-10-30T21:34:06Z",
+          "started_at": "2026-10-30T21:34:15Z",
+          "ended_at": "2026-10-30T21:34:16Z",
+          "queue_latency_s": 53.9,
+          "ok": true,
+          "stage": "scored",
+          "gates": {
+            "check": true,
+            "build": true,
+            "correctness": true,
+            "timeout": true,
+            "sandbox": true
+          },
+          "T_s": 0.049426,
+          "M_bytes": 19787776,
+          "S": 272,
+          "D": 1,
+          "K": 32.753818,
+          "points": 75.763096,
+          "static_axes": "measured",
+          "timeout_s": 96.142,
+          "build_s": 0.555,
+          "image_bytes": 118159955,
+          "failure": null,
+          "lang": [
+            "Rust"
+          ]
+        },
+        "queue_position": null,
+        "queue_latency_s": null
+      },
+      "b": {
+        "registered": true,
+        "best": {
+          "run_id": "run-4a9c515be486",
+          "commit": "3b74c524ad473105b5bfa934855984fe98336eea",
+          "pushed_at": "2026-10-30T18:33:50Z",
+          "dispatched_at": "2026-10-30T18:34:29Z",
+          "started_at": "2026-10-30T18:35:48Z",
+          "ended_at": "2026-10-30T18:35:49Z",
+          "queue_latency_s": 117.5,
+          "ok": true,
+          "stage": "scored",
+          "gates": {
+            "check": true,
+            "build": true,
+            "correctness": true,
+            "timeout": true,
+            "sandbox": true
+          },
+          "T_s": 0.437009,
+          "M_bytes": 70397952,
+          "S": 541,
+          "D": 1,
+          "K": 17.300496,
+          "points": 61.902928,
+          "static_axes": "measured",
+          "timeout_s": 169.057,
+          "build_s": 0.583,
+          "image_bytes": 118138834,
+          "failure": null,
+          "lang": [
+            "Rust"
+          ]
+        },
+        "latest": {
+          "run_id": "run-06a4bd447b20",
+          "commit": "32c99460d3aef5c753752226418587137133a316",
+          "pushed_at": "2026-10-30T21:33:22Z",
+          "dispatched_at": "2026-10-30T21:34:06Z",
+          "started_at": "2026-10-30T21:34:17Z",
+          "ended_at": "2026-10-30T21:34:18Z",
+          "queue_latency_s": 55.0,
+          "ok": true,
+          "stage": "scored",
+          "gates": {
+            "check": true,
+            "build": true,
+            "correctness": true,
+            "timeout": true,
+            "sandbox": true
+          },
+          "T_s": 0.461655,
+          "M_bytes": 68030464,
+          "S": 548,
+          "D": 1,
+          "K": 16.915265,
+          "points": 61.41394,
+          "static_axes": "measured",
+          "timeout_s": 169.057,
+          "build_s": 0.521,
+          "image_bytes": 118139480,
+          "failure": null,
+          "lang": [
+            "Rust"
+          ]
+        },
+        "queue_position": null,
+        "queue_latency_s": null
+      },
+      "c": {
+        "registered": true,
+        "best": {
+          "run_id": "run-b2f445994d95",
+          "commit": "a7abacb15a8978904ba19b8423ab2605918f24d3",
+          "pushed_at": "2026-10-30T21:29:02Z",
+          "dispatched_at": "2026-10-30T21:29:02Z",
+          "started_at": "2026-10-30T21:29:20Z",
+          "ended_at": "2026-10-30T21:29:21Z",
+          "queue_latency_s": 18.5,
+          "ok": true,
+          "stage": "scored",
+          "gates": {
+            "check": true,
+            "build": true,
+            "correctness": true,
+            "timeout": true,
+            "sandbox": true
+          },
+          "T_s": 0.080566,
+          "M_bytes": 10825728,
+          "S": 365,
+          "D": 1,
+          "K": 22.572685,
+          "points": 67.679161,
+          "static_axes": "measured",
+          "timeout_s": 43.332,
+          "build_s": 0.508,
+          "image_bytes": 118113143,
+          "failure": null,
+          "lang": [
+            "Rust"
+          ]
+        },
+        "latest": {
+          "run_id": "run-5e81c17efbe6",
+          "commit": "32c99460d3aef5c753752226418587137133a316",
+          "pushed_at": "2026-10-30T21:33:22Z",
+          "dispatched_at": "2026-10-30T21:34:06Z",
+          "started_at": "2026-10-30T21:34:18Z",
+          "ended_at": "2026-10-30T21:34:19Z",
+          "queue_latency_s": 56.6,
+          "ok": true,
+          "stage": "scored",
+          "gates": {
+            "check": true,
+            "build": true,
+            "correctness": true,
+            "timeout": true,
+            "sandbox": true
+          },
+          "T_s": 0.08204,
+          "M_bytes": 10711040,
+          "S": 365,
+          "D": 1,
+          "K": 22.416685,
+          "points": 67.52857,
+          "static_axes": "measured",
+          "timeout_s": 43.332,
+          "build_s": 0.674,
+          "image_bytes": 118113143,
+          "failure": null,
+          "lang": [
+            "Rust"
+          ]
+        },
+        "queue_position": null,
+        "queue_latency_s": null
+      },
+      "d": {
+        "registered": true,
+        "best": {
+          "run_id": "run-4c2ab35c8a21",
+          "commit": "93b8a1be0b350dfadf39c529b1ddf2edce5255ea",
+          "pushed_at": "2026-10-30T18:58:34Z",
+          "dispatched_at": "2026-10-30T18:58:34Z",
+          "started_at": "2026-10-30T18:58:51Z",
+          "ended_at": "2026-10-30T18:58:52Z",
+          "queue_latency_s": 17.5,
+          "ok": true,
+          "stage": "scored",
+          "gates": {
+            "check": true,
+            "build": true,
+            "correctness": true,
+            "timeout": true,
+            "sandbox": true
+          },
+          "T_s": 0.332279,
+          "M_bytes": 136605696,
+          "S": 336,
+          "D": 1,
+          "K": 15.81727,
+          "points": 59.956576,
+          "static_axes": "measured",
+          "timeout_s": 218.078,
+          "build_s": 0.5,
+          "image_bytes": 118106855,
+          "failure": null,
+          "lang": [
+            "Rust"
+          ]
+        },
+        "latest": {
+          "run_id": "run-55dcc9ab681c",
+          "commit": "32c99460d3aef5c753752226418587137133a316",
+          "pushed_at": "2026-10-30T21:33:22Z",
+          "dispatched_at": "2026-10-30T21:34:06Z",
+          "started_at": "2026-10-30T21:34:19Z",
+          "ended_at": "2026-10-30T21:34:20Z",
+          "queue_latency_s": 57.7,
+          "ok": true,
+          "stage": "scored",
+          "gates": {
+            "check": true,
+            "build": true,
+            "correctness": true,
+            "timeout": true,
+            "sandbox": true
+          },
+          "T_s": 0.336989,
+          "M_bytes": 136011776,
+          "S": 336,
+          "D": 1,
+          "K": 15.720037,
+          "points": 59.822679,
+          "static_axes": "measured",
+          "timeout_s": 218.078,
+          "build_s": 0.529,
+          "image_bytes": 118106855,
+          "failure": null,
+          "lang": [
+            "Rust"
+          ]
+        },
+        "queue_position": null,
+        "queue_latency_s": null
+      }
+    }
+  }
+}

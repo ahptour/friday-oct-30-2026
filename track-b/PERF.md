@@ -144,17 +144,51 @@ and full seed 42
 The offline AMD64 build matches full seeds 1 and 42 under the board sandbox;
 emulated runs validate correctness and are not used for timing decisions.
 
-### Completed Intel board measurement
+### Completed Intel board measurements; score benefit unproven
 
-Commit `a7abacb`, run `run-5e2e58cfab73`: T=0.460989 s,
-M=67,555,328 bytes, S=548, D=1, K=16.951224 and **61.460053 machine points**.
-All check, build, correctness, timeout and sandbox gates passed. Relative to
-the preceding baseline result at `e2db239`, peak memory is 2.81% lower and runtime
-is 1.28% higher; the measured score is **0.056733 points lower** after source cost.
-This single public-data run confirms the smaller peak, but does not establish
-an Intel score gain. Keep the current implementation; further selection needs
-measurements that distinguish a small effect from run-to-run variation.
+| Metric | Previous B, `93b8a1b` | Category-sized arrays, `a7abacb` |
+|---|---:|---:|
+| T (s) | 0.451293 | 0.460989 |
+| M (bytes) | 70,459,392 | 67,555,328 |
+| S | 541 | 548 |
+| D | 1 | 1 |
+| Machine points | 61.549934 | 61.460053 |
+
+Candidate run `run-5e2e58cfab73` has K=16.951224. All check, build, correctness,
+timeout and sandbox gates passed. Compared with the immediately preceding
+`93b8a1b` measurement, peak memory is **4.12% lower**, runtime is **2.15% higher**,
+and the score is **0.089881 points lower**. The older `e2db239` comparison is
+also negative (-0.056733 points), but is not the immediately preceding result.
+
+With the memory cap inactive and D unchanged, the score change decomposes as
+`25*log10(T_old/T_new) + 10*log10(M_old/M_new) + 7.5*log10(S_old/S_new)`:
+memory contributes +0.182793 points, runtime -0.230799, and source -0.041875.
+At the candidate's measured memory and source count, its break-even runtime
+against `93b8a1b` is **457.188527 ms**; its 460.989 ms run is about 3.8 ms slower.
+
+This single public-data comparison records a smaller peak, but establishes
+neither an Intel score gain nor a repeatable regression. Unchanged A and D also
+ran slower in this batch; that is not a correction factor for B. Keep B as a
+candidate pending repeated Intel comparison with the previous implementation.
 
 Source: the [official board feed](https://s3.amazonaws.com/raptors.dev/speeddemon.dev/2026/board/board.json),
 generated at 2026-10-30 21:30:21 UTC (14:30:21 PDT); our team's entry is preserved
 in [`board-a7abacb.json`](../experiments/2026-10-30-score-tradeoffs/board-a7abacb.json).
+The `93b8a1b` row is transcribed from the review's October 30, 14:29 PDT board
+snapshot; it is not contained in the saved `a7abacb` feed entry.
+
+An unchanged-code candidate repeat has also completed at `32c9946`:
+`run-06a4bd447b20`, T=0.461655 s, M=68,030,464 bytes, S=548, D=1,
+K=16.915265 and **61.413940 machine points**. All five gates passed.
+B's source, manifest, lockfile and Dockerfile are identical to `a7abacb`.
+This is a second candidate measurement, not a fresh paired baseline comparison.
+Its official feed entry, generated at 2026-10-30 21:35:19 UTC (14:35:19 PDT), is
+preserved in [`board-32c9946.json`](../experiments/2026-10-30-score-tradeoffs/board-32c9946.json).
+
+For the repeat, use isolated copies of `track-b` at `93b8a1b` and `a7abacb`,
+both with twelve workers and no PGO, on the same idle Intel host. Alternate
+baseline/candidate order across multiple paired batches. Use the official
+harness's prewarming, parent-cgroup memory measurement and five-run aggregation;
+retain every run, all gates and hashes, and both official source counts.
+Compare score deltas per pair before making a final selection. ARM64 timings
+and emulated AMD64 runs cannot complete that comparison.

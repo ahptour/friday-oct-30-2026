@@ -33,7 +33,7 @@ also precedes the first measured run.
 | D wide degree-two contraction | same | 490.046 ms / 135,430,144 B | Reject |
 | D text-offset CSR | same | 480.513 ms / 87,232,512 B | Reject |
 | B baseline, repeated | `b-scratch-samples.json` | 253.523 ms / 69,140,480 B | Comparison |
-| B compact scratch arrays | same | 256.141 ms / 65,593,344 B | Retain; tiny estimated score gain |
+| B compact scratch arrays | same | 256.141 ms / 65,593,344 B | Candidate; Intel score benefit unproven |
 | D baseline, repeated | `d-guarded-samples.json` | 175.366 ms / 137,347,072 B | Comparison |
 | D guarded degree-two contraction | same | 414.562 ms / 135,262,208 B | Reject |
 
@@ -58,8 +58,8 @@ These are local diagnostics, not the final scoring estimator. The
 prewarms input outside the measured run cgroups and reads a dedicated parent
 cgroup's `memory.peak` after container teardown. Its final five-run batch uses
 the mean of the middle three times and the maximum of all five memory peaks;
-it does not discard the
-first memory peak. Our local timer reads its container cgroup before teardown,
+it does not discard the first memory peak. Our local timer reads its container
+cgroup before teardown,
 and these tables use warm medians. Use the official procedure where practical
 for future close decisions, retaining all samples and this distinction.
 
@@ -76,9 +76,14 @@ See track PERF files for the full tradeoffs and actual board run IDs.
 `board-a7abacb.json` preserves our team's public feed entry generated at
 2026-10-30 21:30:21 UTC. C's selected layout scored 67.659457 at `93b8a1b` and
 67.679161 in the unchanged-code repeat at `a7abacb`. B's scratch-array change
-scored 61.460053 at `a7abacb`, 0.056733 below the preceding `e2db239` baseline
-result despite a smaller peak. All gates passed. C's Intel score improvement is
+scored 61.460053 at `a7abacb`, 0.089881 below the immediately preceding
+`93b8a1b` result despite a smaller peak (and 0.056733 below the older `e2db239`
+baseline). All gates passed. C's Intel score improvement is
 confirmed; B's small local estimated gain has not been established on Intel.
+`board-32c9946.json` preserves a subsequent feed entry with B's unchanged-code
+candidate repeat: 61.413940 points, all gates passed. A fresh paired Intel
+baseline/candidate comparison remains pending; see B's PERF log for the
+break-even runtime and comparison procedure.
 
 ## Reproduction
 
