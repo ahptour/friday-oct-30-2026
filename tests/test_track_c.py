@@ -86,6 +86,24 @@ class TrackCTest(unittest.TestCase):
                                rng.choice(['\n', '\r\n'])))
         self.check_bytes(b''.join(rows))
 
+    def test_short_decimal_widths_signs_and_eof(self):
+        # Exercise all ID widths, region lookup misses through seven digits,
+        # and one-to-five-digit integer amounts, including negative subunits.
+        identifiers = [1, 10, 100, 1000, 10000, 100000, 1000000,
+                       10000000, 39999999]
+        regions = [3, 7, 12, 20, 100, 1000, 10000, 100000, 9999999]
+        amounts = ['0.00', '0.01', '-0.01', '9.09', '-9.99', '10.10',
+                   '99.99', '100.01', '999.90', '1000.00', '9999.99',
+                   '10000.01', '99999.99', '-999.99']
+        rows = [record(identifier, 'numeric', '', region, amount,
+                       newline='\n' if i % 2 else '\r\n')
+                for i, identifier in enumerate(identifiers)
+                for region in regions for amount in amounts]
+        for terminator in [b'', b'\n', b'\r\n']:
+            with self.subTest(terminator=terminator):
+                self.check_bytes(HEADER + b''.join(rows[:-1])
+                                 + rows[-1].rstrip(b'\r\n') + terminator)
+
     def test_hash_collisions_and_overflow_name_table(self):
         # Every name has the same sampled first/middle/last words and length.
         names = []

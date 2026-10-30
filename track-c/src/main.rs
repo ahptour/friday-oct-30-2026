@@ -186,7 +186,19 @@ impl<'a> Structure<'a> {
         )
     }
 }
-fn digits(input: &[u8]) -> u64 {
+fn digits(input: &[u8], start: usize, end: usize) -> u64 {
+    let len = end - start;
+    if (1..=8).contains(&len) && end >= 8 {
+        // Read within the complete mapping, including across worker boundaries.
+        // Mask preceding field bytes to zero: the eight lanes are now decimal
+        // digits with leading zeroes, even for a one-byte field at EOF.
+        let v = u64::from_le_bytes(input[end - 8..end].try_into().unwrap());
+        let v = v & (0x0f0f0f0f0f0f0f0f << ((8 - len) * 8));
+        let v = (v & 0x00ff00ff00ff00ff) * 10 + ((v >> 8) & 0x00ff00ff00ff00ff);
+        let v = (v & 0x0000ffff0000ffff) * 100 + ((v >> 16) & 0x0000ffff0000ffff);
+        return (v & 0xffffffff) * 10_000 + (v >> 32);
+    }
+    let input = &input[start..end];
     let mut value = 0;
     let mut chunks = input.chunks_exact(8);
     for chunk in &mut chunks {
@@ -382,16 +394,17 @@ fn parse<'a>(
         if input[pos] == 0xef {
             pos += 3;
         }
-        let id = digits(&input[pos..f1]);
+        let id = digits(input, pos, f1);
         let quoted = usize::from(q2 != q1);
         let name = &input[f1 + 1 + quoted..f2 - quoted];
-        let region = digits(&input[f3 + 1..f4]) as usize;
+        let region = digits(input, f3 + 1, f4) as usize;
         let country = usize::from(*lookup.get(region).unwrap_or(&0));
         let amount = f4 + 1;
         let negative = usize::from(input[amount] == b'-');
         let amount_end = eol - usize::from(input[eol - 1] == b'\r');
-        let cents = (digits(&input[amount + negative..amount_end - 3]) * 100
-            + digits(&input[amount_end - 2..amount_end])) as i64;
+        let cents = (digits(input, amount + negative, amount_end - 3) * 100
+            + u64::from(input[amount_end - 2] - b'0') * 10
+            + u64::from(input[amount_end - 1] - b'0')) as i64;
         let cents = if negative != 0 { -cents } else { cents };
         let group = &mut groups[country];
         if group.count == 0 {

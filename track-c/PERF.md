@@ -155,3 +155,34 @@ and adds 180 counted lines. Its net improvement is **0.852908 points**.
 This is one public-data Intel run, not final holdout evidence. The raw result
 is saved in [intel-dbcb3af.json](../experiments/2026-10-30-c-blocks/intel-dbcb3af.json)
 from the [official board feed](https://s3.amazonaws.com/raptors.dev/speeddemon.dev/2026/board/board.json).
+
+
+## Step 4: known-length short decimal conversion (2026-10-30)
+
+Hypothesis: short numeric fields currently miss the eight-digit SWAR loop.
+Convert one through eight digits using the same pair/four/eight reduction,
+masking preceding bytes to leading zeroes. Read the eight bytes ending at the
+field's end from the complete immutable mapping, only when end >= 8. This
+stays in bounds at the first record, worker boundaries and EOF; it does not
+require padding, copying, allocation or reading past the field end. Empty,
+early and longer fields retain the previous general conversion. Fractional
+cents use two direct digit operations; sign handling remains outside conversion.
+Name storage, structural scanning, pipeline depth, workers and flags are unchanged.
+
+The baseline repeat at `aa708b6`, `run-9870cc100939`, passed every gate:
+60.416 ms, 13,426,688 bytes, S545, D1, 68.563262 points. Recent unchanged C
+runs span 59.995–61.685 ms; the historical best is 68.743505 points at
+60.261 ms / 12,963,840 bytes / S545. Do not treat small single-run differences
+as a demonstrated gain. Raw baseline evidence (generated 23:00:56 UTC) and
+complete baseline/candidate sources are under
+[`experiments/2026-10-30-c-short-decimals`](../experiments/2026-10-30-c-short-decimals/).
+
+Estimated S559 and unchanged memory imply about 59.804 ms historical-best
+break-even at the historical best's memory; actual official S/M must replace
+these estimates. Aim near 57 ms or below for a useful margin. No memory payload
+change is intended; measured peak remains unknown.
+
+Formatting, native and x86_64 Linux release compile checks, and the pinned
+Docker build passed. A differential regression case covers numeric widths,
+negative subunits, mixed terminators and EOF. Local tests and runtime benchmarks
+were deliberately skipped. Official correctness and Intel performance are pending.
