@@ -18,8 +18,10 @@ measured cgroup; `/timer` reports process exec-to-exit time and cgroup
 `memory.peak`, including its own small overhead. Timed runs use CPU threads
 0–11, 8 GB memory with swap disabled, the board sandbox and no network. Variants
 run sequentially in alternating forward/reverse order. No competing builds,
-data generation or tests run during a series. Each file retains cold trial 0;
-warm summaries exclude it and take maximum warm memory, never average memory.
+data generation or tests run during a series. Every series retains trial 0;
+warm summaries exclude that first trial for each variant and take maximum warm
+memory, never average memory. Trial 0 is not necessarily cold input: prewarming
+also precedes the first measured run.
 
 | Experiment | Raw samples | Warm median / largest warm peak | Decision |
 |---|---|---|---|
@@ -42,16 +44,41 @@ run. This follow-up was necessary because the first nine-trial B scratch series
 consistent with input-page charges. Keep that row and the full series; do not
 silently trim it. Its runtime/memory results are not the selection evidence.
 
+The original B worker series likewise retains a 286,601,216-byte first peak for
+twelve workers, versus a maximum of 69,066,752 bytes in its retained warm trials.
+Linux cgroup memory accounting includes page cache, and memory is charged to the
+cgroup that instantiates it ([kernel documentation](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#memory-ownership)).
+Input-page charging or VM cache behavior could explain these peaks; the samples
+do not record `memory.stat`, so that cause is unproven. Prewarming once per track
+is insufficient evidence of comparable accounting for a close decision. Keep
+these historical rows intact; current scripts prewarm before every measured run.
+
+These are local diagnostics, not the final scoring estimator. The
+[official harness](https://github.com/hackathon-raptors/speed-demon-2026/blob/main/harness/run_submission.py)
+prewarms input outside the measured run cgroups and reads a dedicated parent
+cgroup's `memory.peak` after container teardown. Its final five-run batch uses
+the mean of the middle three times and the maximum of all five memory peaks;
+it does not discard the
+first memory peak. Our local timer reads its container cgroup before teardown,
+and these tables use warm medians. Use the official procedure where practical
+for future close decisions, retaining all samples and this distinction.
+
 Use the capped scoring formula, not time alone. All selection comparisons are
 above the memory-benefit threshold. With unchanged source, C's selected variant
 estimates +2.837 local machine points. The B scratch time/memory estimate is
 +0.117 before about seven added formatted code lines (estimated net +0.075).
 B worker variants lose 0.856 / 2.913 / 6.096 local points against twelve workers.
 The D alternatives lose at least 9–12 points before their added source cost.
-No official candidate S is claimed: the static-tools image was unavailable.
-See track PERF files for the full tradeoffs and previous actual board run IDs.
+Local source-cost estimates were approximate because the static-tools image
+was unavailable; the completed board results supply official S values.
+See track PERF files for the full tradeoffs and actual board run IDs.
 `baseline-board.json` preserves only our team's public baseline feed entry.
-No new candidate has been submitted for an Intel measurement.
+`board-a7abacb.json` preserves our team's public feed entry generated at
+2026-10-30 21:30:21 UTC. C's selected layout scored 67.659457 at `93b8a1b` and
+67.679161 in the unchanged-code repeat at `a7abacb`. B's scratch-array change
+scored 61.460053 at `a7abacb`, 0.056733 below the preceding `e2db239` baseline
+result despite a smaller peak. All gates passed. C's Intel score improvement is
+confirmed; B's small local estimated gain has not been established on Intel.
 
 ## Reproduction
 

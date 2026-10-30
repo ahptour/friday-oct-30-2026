@@ -4,6 +4,7 @@
 |---|---|---|---|---|---|
 | 0 | Published Python reference | | 14.44 | 367 | 0 |
 | 1 | Rust parallel mapped CSV parsing, dense region lookup, exact atomic name/country interning | run-628c737f586e | 0.074043 | 16.949248 | 66.648923 |
+| 2 | One-byte country IDs and half-sized exact name table | run-50c660d01afb | 0.080884 | 10.768384 | 67.659457 |
 
 Step 0 is the organisers' published calibration. Step 1 is the live-board
 measurement for commit `b5076d5` on 2026-10-30: S=365 and D=1. The score
@@ -87,5 +88,25 @@ Raw samples and reproducible candidates are in
 The immediately preceding unchanged-code board repeat was `run-c342f5384aee`
 at `e2db239`: T=0.078485 s, M=17,092,608 bytes, S=365, D=1,
 K=20.873513, machine points=65.979778; all gates passed. That repeat is not
-an optimization step. The candidate has not been submitted for a new Intel
-measurement; committing and submission remain with the user.
+an optimization step.
+
+### Completed Intel board measurements
+
+| Commit | Run | T (s) | M (bytes) | S | D | K | Machine points |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `93b8a1b` | `run-50c660d01afb` | 0.080884 | 10,768,384 | 365 | 1 | 22.552211 | 67.659457 |
+| `a7abacb` | `run-b2f445994d95` | 0.080566 | 10,825,728 | 365 | 1 | 22.572685 | 67.679161 |
+
+All check, build, correctness, timeout and sandbox gates passed in both runs.
+The first result improves on the preceding `e2db239` run by **1.679679 points**:
+37.00% less peak memory compensates for 3.06% more runtime, with S and D unchanged.
+It also exceeds the previous best C score, 66.946447, by 0.713010 points.
+C's production source and Dockerfile are identical at `93b8a1b` and `a7abacb`;
+the second result is a repeat of the same optimization, not another code gain.
+These are individual public-data runs; final holdout scoring remains separate.
+
+The first row is transcribed from the review's October 30, 14:25 PDT snapshot of
+the [official board feed](https://s3.amazonaws.com/raptors.dev/speeddemon.dev/2026/board/board.json).
+The second row was independently retrieved from that feed, generated at
+2026-10-30 21:30:21 UTC (14:30:21 PDT), and is preserved in
+[`board-a7abacb.json`](../experiments/2026-10-30-score-tradeoffs/board-a7abacb.json).

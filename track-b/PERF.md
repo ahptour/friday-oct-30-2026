@@ -73,11 +73,22 @@ hashes matched. No source/dependency penalty changes apply to these constants.
 | 6 | 0.354494351 | 50,802,688 | -2.913 |
 | 4 | 0.498377121 | 45,113,344 | -6.096 |
 
+The retained raw series also includes the twelve-worker first trial's
+**286,601,216-byte** peak, versus **69,066,752 bytes** for the worst retained
+warm trial. Every variant's first trial is excluded by the same warm-summary
+rule. Prewarming once per track did not ensure comparable
+memory accounting throughout the series. Input-page charging or VM cache
+behavior is a plausible explanation, not a confirmed diagnosis: these samples
+contain no `memory.stat` breakdown. Do not use this series to resolve close
+memory or score differences. The later scratch-array comparison below prewarms
+outside the measured cgroup immediately before every run and retains both full
+sample series, including anomalous rows.
+
 All measurements remain above the reference-memory/50 cap. Savings did not
 repay the extra time in the actual scoring formula; retain twelve workers.
 Apple Silicon has different cores from the scoring server, so this rejects a
 local selection, not the possibility of an Intel-specific win. An Intel worker
-sweep and query-category-sized scratch arrays remain useful next experiments.
+sweep remains useful; the scratch-array experiment follows below.
 Six unchanged B differential suites pass. Reproduction and raw samples are in
 `experiments/2026-10-30-score-tradeoffs/` at the repository root.
 
@@ -122,8 +133,8 @@ reversed query orders, repeated phrase hits, unsatisfiable clauses, multiple
 Boolean clauses and transitions across 64-document blocks. Formatting, Clippy
 with warnings denied, and the offline ARM64 sandbox/full public hash pass.
 Reproduction and both complete sample series are in
-`experiments/2026-10-30-score-tradeoffs/` at the repository root. The user will
-handle committing and board submission; no new Intel result is claimed.
+`experiments/2026-10-30-score-tradeoffs/` at the repository root. The completed
+Intel result is recorded below.
 
 
 The unchanged Python oracle also matches sample seed 42
@@ -132,3 +143,18 @@ and full seed 42
 (`f853a72cd18c2535183170a22482f363a251ac88fec1ed419791e1572dbfdffd`).
 The offline AMD64 build matches full seeds 1 and 42 under the board sandbox;
 emulated runs validate correctness and are not used for timing decisions.
+
+### Completed Intel board measurement
+
+Commit `a7abacb`, run `run-5e2e58cfab73`: T=0.460989 s,
+M=67,555,328 bytes, S=548, D=1, K=16.951224 and **61.460053 machine points**.
+All check, build, correctness, timeout and sandbox gates passed. Relative to
+the preceding baseline result at `e2db239`, peak memory is 2.81% lower and runtime
+is 1.28% higher; the measured score is **0.056733 points lower** after source cost.
+This single public-data run confirms the smaller peak, but does not establish
+an Intel score gain. Keep the current implementation; further selection needs
+measurements that distinguish a small effect from run-to-run variation.
+
+Source: the [official board feed](https://s3.amazonaws.com/raptors.dev/speeddemon.dev/2026/board/board.json),
+generated at 2026-10-30 21:30:21 UTC (14:30:21 PDT); our team's entry is preserved
+in [`board-a7abacb.json`](../experiments/2026-10-30-score-tradeoffs/board-a7abacb.json).
