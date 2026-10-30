@@ -102,15 +102,51 @@ impl Graph {
         &self.edges[self.offsets[node] as usize..self.offsets[node + 1] as usize]
     }
 }
+#[derive(Default)]
+struct Queue {
+    small: BinaryHeap<Reverse<u64>>,
+    large: BinaryHeap<Reverse<(u64, u32)>>,
+}
+impl Queue {
+    fn new() -> Self {
+        Self::default()
+    }
+    fn push(&mut self, Reverse((distance, node)): Reverse<(u64, u32)>) {
+        if distance <= u64::from(u32::MAX) {
+            self.small.push(Reverse((distance << 32) | u64::from(node)));
+        } else {
+            self.large.push(Reverse((distance, node)));
+        }
+    }
+    fn peek(&self) -> Option<Reverse<(u64, u32)>> {
+        self.small
+            .peek()
+            .map(|&Reverse(value)| Reverse((value >> 32, value as u32)))
+            .or_else(|| self.large.peek().copied())
+    }
+    fn pop(&mut self) -> Option<Reverse<(u64, u32)>> {
+        self.small
+            .pop()
+            .map(|Reverse(value)| Reverse((value >> 32, value as u32)))
+            .or_else(|| self.large.pop())
+    }
+    fn len(&self) -> usize {
+        self.small.len() + self.large.len()
+    }
+    fn clear(&mut self) {
+        self.small.clear();
+        self.large.clear();
+    }
+}
 struct Search {
     distance: HashMap<u32, u64, BuildHasherDefault<NodeHasher>>,
-    heap: BinaryHeap<Reverse<(u64, u32)>>,
+    heap: Queue,
 }
 impl Search {
     fn new() -> Self {
         Self {
             distance: HashMap::default(),
-            heap: BinaryHeap::new(),
+            heap: Queue::new(),
         }
     }
     fn start(&mut self, source: u32) {

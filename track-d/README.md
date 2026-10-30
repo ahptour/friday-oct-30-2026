@@ -12,7 +12,10 @@ ordering, geometry, or input seed is assumed.
 
 Up to twelve query workers share the graph and take queries from an atomic work
 counter. Each query uses bidirectional Dijkstra with uint64 distances and binary
-heaps. Expand the smaller frontier, then stop when the sum of the two minimum
+heaps. Queue entries with distances up to uint32 maximum pack the distance and
+node into one uint64; larger distances use a separate full-width heap. All
+compact entries precede full-width entries, preserving the exact minimum.
+Expand the smaller frontier, then stop when the sum of the two minimum
 queue distances cannot improve the best complete path found. An empty forward
 adjacency at the source or reverse adjacency at the target immediately proves
 unreachability (except a same-node query, which always answers zero).

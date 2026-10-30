@@ -3,11 +3,12 @@
 | Step | Change | Run ID | T (s) | M (MB) | Points |
 |---|---|---|---|---|---|
 | 0 | Published Python reference | | 14.44 | 367 | 0 |
-| 1 | Rust parallel mapped CSV parsing, dense region lookup, exact atomic name/country interning | Pending | | | |
+| 1 | Rust parallel mapped CSV parsing, dense region lookup, exact atomic name/country interning | run-628c737f586e | 0.074043 | 16.949248 | 66.648923 |
 
-Step 0 is the organisers' published calibration. Step 1 awaits a live-board
-measurement; local diagnostics below are not board figures. The requested
-Track C score target is at least 65.403.
+Step 0 is the organisers' published calibration. Step 1 is the live-board
+measurement for commit `b5076d5` on 2026-10-30: S=365 and D=1. The score
+**66.648923** exceeds the requested Track C target of **65.403**. Local
+diagnostics below are separate from the board figures.
 
 ## Step 1: exact names without per-record allocation (2026-10-30)
 

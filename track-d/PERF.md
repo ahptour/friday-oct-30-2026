@@ -4,6 +4,7 @@
 |---|---|---|---|---|---|
 | 0 | Organisers' unchanged Python reference | | 72.69 | 893 | 0 |
 | 1 | Parallel parsing, forward/reverse CSR, sparse bidirectional Dijkstra, balanced frontiers | run-c88839436741 | 0.459081 | 170.385408 | 56.211682 |
+| 2 | Twelve query workers | run-43460285dd9e | 0.354099 | 171.261952 | 59.008513 |
 
 ## Rust implementation, 2026-10-30
 
@@ -43,10 +44,26 @@ per-worker state and the two concurrent CSR builders. Three warm native trials
 were about 192 ms with six workers; the twelve-worker candidate took about
 132 ms median (249 / 132 / 130 ms, with the first run noticeably cold).
 These results are from Apple Silicon and do not predict the Intel board's
-hyperthreading benefit. The second live-board measurement remains pending.
+hyperthreading benefit. The second live-board run, commit `50d3a87`, passed all
+gates and scored 59.008513 with S=269 and D=1. This remains below the 59.238 target.
 
 A sequential CSR construction experiment released raw edges before building the
 reverse graph. It reduced the theoretical build allocation peak from roughly
 170 MB to 114 MB but raised local runtime to about 185 ms. Retain the parallel
 builders because that time cost outweighed the expected memory-score gain.
 Five differential tests and the full published output hash continue to pass.
+
+## Step 3: compact queue entries for short distances
+
+Distances up to uint32 maximum now use one packed uint64 containing the distance
+and node ID. Larger distances keep the original full-width tuple in a separate
+heap. Every compact entry sorts before every full-width entry, so selecting from
+the compact heap first preserves the same exact ordering and uint64 answers.
+This reduces the heap footprint and comparison/movement cost for shorter paths
+without assuming a bound on the final distance. A native full-seed-1 comparison
+took about 134.1 ms before and 118.4 ms after the change. These are local Apple
+Silicon diagnostics; the updated live-board score remains pending.
+
+The compact-queue candidate passes all five differential suites, including paths
+above uint32 and randomized all-pairs queries with uint32 maximum weights. The
+full and sample published hashes also match.
