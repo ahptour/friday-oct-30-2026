@@ -8,23 +8,31 @@ Read the queries first and intern only the requested terms. Tokens are normalize
 into fixed 32-byte keys using ASCII lowercase only. Non-ASCII bytes always
 separate tokens, exactly as the specification requires.
 
-Build a token-level Aho–Corasick automaton for all phrase queries. Compact nodes
-store failure links and linked terminal query IDs, including duplicate queries.
-During a document scan, unknown tokens reset the automaton and document
-boundaries reset its state. Per-query document stamps prevent repeated phrase
-occurrences from counting a document twice.
+Sample the first 1,000 documents to choose selective query anchors. Sampling
+only chooses an execution order; every document and query is still evaluated
+exactly, including terms absent from the sample. Compile left-to-right Boolean
+expressions into a small disjunction of conjunctions, removing contradictory
+clauses and selecting a positive anchor for each remaining clause.
 
 Map the corpus read-only and partition it at document boundaries among up to
-12 workers. Each worker simultaneously matches phrases and indexes terms used
-by Boolean queries. Posting lists begin as sorted document IDs and switch to a
-bitset when dense enough; worker bitsets cover only that worker's document range.
-Merge worker indexes in document order, then answer Boolean queries in parallel.
-Sparse and dense set operations obey the written left-to-right operator order.
+12 workers. Boolean evaluation operates on blocks of 64 document IDs. Each
+requested term holds a 64-bit presence mask; an anchor schedules its clauses
+once per block. Bitwise intersections and differences evaluate clauses, and
+unions combine them into query masks. Counts use population counts, ID sums use
+weighted population counts, and only the first ten IDs need enumeration. Clear
+only masks touched in the completed block; no full corpus index is retained.
+
+For phrases, choose the sampled rarest term and record its occurrences in the
+current document's token-ID sequence. Compare the complete phrase around every
+candidate occurrence. Unknown tokens retain a sentinel position, repeated terms
+must match at distinct consecutive positions, and document boundaries cannot be
+crossed. Document stamps prevent repeated matches from counting twice.
 
 Each result records its exact count, 64-bit ID sum, and ten smallest IDs. Worker
-phrase summaries and output chunks are merged in document/query order. The only
-unsafe operations are the Unix mapping calls and forming a borrowed read-only
-slice from the mapping. The mapping outlives all scoped threads.
+summaries merge in document order. On x86-64, SSE2 classifies and lowercases up to
+16 bytes per step, with a scalar fallback near the input boundary and on other
+architectures. Unsafe code is limited to bounded SIMD loads/stores and the Unix
+read-only mapping, whose lifetime exceeds all scoped threads.
 
 ## Dependencies
 
@@ -44,17 +52,17 @@ cargo clippy --manifest-path track-b/Cargo.toml --offline --all-targets -- -D wa
 python3 check.py b --data data/b/full-seed1 --expected f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927
 ```
 
-The five differential tests cover the worked example, operator associativity,
-ASCII/Unicode distinctions, 32-byte tokens, phrase failure links, repeated terms,
-duplicate queries, document boundaries, empty inputs, mixed sparse/dense sets,
-and randomized documents spanning worker boundaries.
+The six differential tests cover the worked example, operator associativity,
+ASCII/Unicode distinctions, 32-byte tokens, phrase positions, repeated terms,
+duplicate queries, document boundaries, empty inputs, all six-term operator sequences, terms absent from the sampling
+prefix, and randomized documents spanning worker boundaries.
 
 For native development the binary accepts `--data DIRECTORY --out DIRECTORY`;
 defaults are `/data` and `/out`. See [PERF.md](PERF.md) for measurements.
 
 ## With another 24 hours
 
-Measure document-at-a-time Boolean evaluation using selective query anchors to
-avoid retaining posting lists. Compare that trade with the current hybrid index,
-then profile the automaton's transition lookup and ASCII tokenizer on the board.
-Retain only improvements that survive independent seeds and the full output hash.
+Profile the Boolean block size, phrase anchor dispatch, and SIMD tokenizer on
+the scoring CPU. Compare compact token dictionaries and frequency-ordered IDs
+only when the measured gain pays for their extra source and memory. Retain
+improvements only after independent-seed and full-output verification.

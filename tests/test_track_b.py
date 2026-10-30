@@ -1,5 +1,6 @@
 """Differential checks for the Rust search engine against the published reference."""
 import importlib.util
+from itertools import product
 from pathlib import Path
 from random import Random
 import subprocess
@@ -61,6 +62,20 @@ class TrackBTest(unittest.TestCase):
                    'PHRASE "a a a a"', 'PHRASE "b a a"', 'PHRASE "b a a a"',
                    'PHRASE "a b a b a"', 'PHRASE "a b"', 'BOOL a NOT a OR b AND a']
         self.check(docs, queries)
+
+    def test_all_operator_orders_and_sampled_rare_terms(self):
+        words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta']
+        docs = [' '.join(w for i, w in enumerate(words) if mask & (1 << i))
+                for mask in range(64)]
+        queries = []
+        for ops in product(['AND', 'OR', 'NOT'], repeat=5):
+            for terms in [words, ['alpha', 'beta', 'alpha', 'beta', 'gamma', 'alpha']]:
+                query = 'BOOL ' + terms[0]
+                for op, term in zip(ops, terms[1:]):
+                    query += ' ' + op + ' ' + term
+                queries.append(query)
+        self.check(docs, queries)
+        self.check(['unrelated'] * 1000 + docs, queries)
 
     def test_no_documents_or_queries(self):
         self.check([], ['BOOL absent', 'PHRASE "a b"'])

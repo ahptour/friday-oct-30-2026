@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::env;
 use std::ffi::c_void;
 use std::fs::{self, File};
@@ -84,145 +84,259 @@ struct Query {
     ops: Vec<u8>,
     phrase: Option<usize>,
 }
-#[derive(Default)]
-struct Node {
-    terminal: u32,
-    fail: u32,
-    output: u32,
-}
-struct Automaton {
-    nodes: Vec<Node>,
-    edges: Table<u64, usize>,
-    root: Vec<usize>,
-    next_query: Vec<u32>,
-}
-impl Automaton {
-    fn next(&self, state: usize, term: usize) -> usize {
-        if state == 0 {
-            self.root[term]
-        } else {
-            *self
-                .edges
-                .get(&((state as u64) << 32 | term as u64))
-                .unwrap_or(&0)
-        }
-    }
-    fn build(queries: &[Query], terms: usize) -> Self {
-        let mut a = Self {
-            nodes: vec![Node::default()],
-            edges: Table::default(),
-            root: vec![0; terms],
-            next_query: vec![0; queries.iter().filter(|q| q.phrase.is_some()).count()],
-        };
-        let mut children: Vec<Vec<(usize, usize)>> = vec![Vec::new()];
-        for query in queries {
-            if let Some(id) = query.phrase {
-                let mut state = 0;
-                for &term in &query.terms {
-                    let mut next = a.next(state, term);
-                    if next == 0 {
-                        next = a.nodes.len();
-                        a.nodes.push(Node::default());
-                        children.push(Vec::new());
-                        children[state].push((term, next));
-                        if state == 0 {
-                            a.root[term] = next;
-                        } else {
-                            a.edges.insert((state as u64) << 32 | term as u64, next);
-                        }
-                    }
-                    state = next;
-                }
-                a.next_query[id] = a.nodes[state].terminal;
-                a.nodes[state].terminal = id as u32 + 1;
-            }
-        }
-        let mut queue: VecDeque<usize> = children[0].iter().map(|&(_, id)| id).collect();
-        while let Some(state) = queue.pop_front() {
-            for &(term, id) in &children[state] {
-                let mut fail = a.nodes[state].fail as usize;
-                while fail != 0 && a.next(fail, term) == 0 {
-                    fail = a.nodes[fail].fail as usize;
-                }
-                fail = a.next(fail, term);
-                a.nodes[id].fail = fail as u32;
-                a.nodes[id].output = if a.nodes[fail].terminal == 0 {
-                    a.nodes[fail].output
-                } else {
-                    fail as u32
-                };
-                queue.push_back(id);
-            }
-        }
-        a
-    }
-}
-
 #[derive(Clone, Default)]
 struct Summary {
-    count: u32,
     sum: u64,
-    first: Vec<u32>,
+    count: u32,
+    first: [u32; 10],
 }
 impl Summary {
-    fn add(&mut self, id: u32) {
-        self.count += 1;
-        self.sum += u64::from(id);
-        if self.first.len() < 10 {
-            self.first.push(id);
-        }
-    }
-    fn merge(&mut self, other: &Self) {
-        self.count += other.count;
-        self.sum += other.sum;
-        self.first
-            .extend(other.first.iter().take(10 - self.first.len()));
-    }
     fn write(&self, output: &mut Vec<u8>) {
         write!(output, "{} {}", self.count, self.sum).unwrap();
-        for id in &self.first {
+        for id in &self.first[..self.count.min(10) as usize] {
             write!(output, " {id}").unwrap();
         }
         output.push(b'\n');
     }
 }
-struct Parsed {
-    postings: Vec<Set>,
+struct Clause {
+    query: usize,
+    anchor: usize,
+    terms: Vec<(usize, bool)>,
+}
+fn anchors(
+    input: &[u8],
+    dictionary: &Table<[u8; 32], usize>,
+    queries: &[Query],
+) -> (Vec<Vec<usize>>, Vec<Clause>, Vec<u32>) {
+    let mut frequencies = vec![0u32; dictionary.len()];
+    let mut seen = vec![u32::MAX; dictionary.len()];
+    for (doc, line) in input.split(|&b| b == b'\n').take(1000).enumerate() {
+        let Some(tab) = line.iter().position(|&b| b == b'\t') else {
+            continue;
+        };
+        for word in line[tab + 1..]
+            .split(|b| !b.is_ascii_alphanumeric())
+            .filter(|w| !w.is_empty())
+        {
+            let mut key = [0; 32];
+            for (dst, &byte) in key.iter_mut().zip(word) {
+                *dst = byte.to_ascii_lowercase();
+            }
+            if let Some(&term) = dictionary.get(&key)
+                && seen[term] != doc as u32
+            {
+                seen[term] = doc as u32;
+                frequencies[term] += 1;
+            }
+        }
+    }
+    let mut anchors = vec![Vec::new(); dictionary.len()];
+    let mut all = Vec::new();
+    for (id, query) in queries
+        .iter()
+        .enumerate()
+        .filter(|(_, q)| q.phrase.is_none())
+    {
+        let mut clauses = vec![vec![(query.terms[0], true)]];
+        for (&op, &term) in query.ops.iter().zip(&query.terms[1..]) {
+            if op == b'O' {
+                clauses.push(vec![(term, true)]);
+            } else {
+                for clause in &mut clauses {
+                    clause.push((term, op == b'A'));
+                }
+            }
+        }
+        for mut terms in clauses {
+            terms.sort_unstable();
+            terms.dedup();
+            if terms.windows(2).any(|pair| pair[0].0 == pair[1].0) {
+                continue;
+            }
+            let anchor = terms
+                .iter()
+                .filter(|(_, positive)| *positive)
+                .min_by_key(|(term, _)| frequencies[*term])
+                .unwrap()
+                .0;
+            terms.retain(|&(term, positive)| term != anchor || !positive);
+            terms.sort_unstable_by_key(|&(term, positive)| {
+                if positive {
+                    frequencies[term]
+                } else {
+                    1000 - frequencies[term]
+                }
+            });
+            anchors[anchor].push(all.len());
+            all.push(Clause {
+                query: id,
+                anchor,
+                terms,
+            });
+        }
+    }
+    (anchors, all, frequencies)
+}
+
+#[derive(Clone, Default)]
+struct Compact {
+    sum: u64,
+    count: u32,
+    first: u32,
+}
+struct Partial {
+    stats: Vec<Compact>,
+    first: Vec<[u32; 10]>,
+}
+impl Partial {
+    fn new(len: usize) -> Self {
+        Self {
+            stats: vec![Compact::default(); len],
+            first: Vec::new(),
+        }
+    }
+    fn add(&mut self, query: usize, doc: u32) {
+        let stat = &mut self.stats[query];
+        if stat.count == 0 {
+            stat.first = self.first.len() as u32;
+            self.first.push([0; 10]);
+        }
+        if stat.count < 10 {
+            self.first[stat.first as usize][stat.count as usize] = doc;
+        }
+        stat.count += 1;
+        stat.sum += u64::from(doc);
+    }
+}
+#[allow(clippy::too_many_arguments)]
+fn flush(
     base: u32,
-    phrases: Vec<Summary>,
-    documents: usize,
+    bits: &mut [u64],
+    touched_terms: &mut Vec<usize>,
+    candidates: &[usize],
+    clauses: &[Clause],
+    query_bits: &mut [u64],
+    touched: &mut Vec<usize>,
+    results: &mut Partial,
+) {
+    touched.clear();
+    for &id in candidates {
+        let clause = &clauses[id];
+        let mut value = bits[clause.anchor];
+        for &(term, positive) in &clause.terms {
+            let mask = bits[term];
+            value &= if positive { mask } else { !mask };
+            if value == 0 {
+                break;
+            }
+        }
+        if value != 0 {
+            if query_bits[clause.query] == 0 {
+                touched.push(clause.query);
+            }
+            query_bits[clause.query] |= value;
+        }
+    }
+    for term in touched_terms.drain(..) {
+        bits[term] = 0;
+    }
+    for &query in touched.iter() {
+        let word = query_bits[query];
+        query_bits[query] = 0;
+        let count = word.count_ones();
+        if count <= 4 {
+            let mut rest = word;
+            while rest != 0 {
+                results.add(query, base + rest.trailing_zeros());
+                rest &= rest - 1;
+            }
+        } else {
+            let stat = &mut results.stats[query];
+            if stat.count == 0 {
+                stat.first = results.first.len() as u32;
+                results.first.push([0; 10]);
+            }
+            let mut rest = word;
+            let mut i = stat.count as usize;
+            while i < 10 && rest != 0 {
+                results.first[stat.first as usize][i] = base + rest.trailing_zeros();
+                rest &= rest - 1;
+                i += 1;
+            }
+            stat.count += count;
+            stat.sum += u64::from(base) * u64::from(count)
+                + u64::from((word & 0xaaaaaaaaaaaaaaaa).count_ones())
+                + 2 * u64::from((word & 0xcccccccccccccccc).count_ones())
+                + 4 * u64::from((word & 0xf0f0f0f0f0f0f0f0).count_ones())
+                + 8 * u64::from((word & 0xff00ff00ff00ff00).count_ones())
+                + 16 * u64::from((word & 0xffff0000ffff0000).count_ones())
+                + 32 * u64::from((word & 0xffffffff00000000).count_ones());
+        }
+    }
+}
+
+fn read_token(input: &[u8], pos: &mut usize, token: &mut [u8; 32]) -> usize {
+    let mut length = 0;
+    #[cfg(target_arch = "x86_64")]
+    while *pos + 16 <= input.len() && length < 32 {
+        use std::arch::x86_64::*;
+        // x86-64 guarantees SSE2. Bounds above cover the entire unaligned load.
+        let count = unsafe {
+            let raw = _mm_loadu_si128(input.as_ptr().add(*pos).cast());
+            let lower = _mm_or_si128(raw, _mm_set1_epi8(0x20));
+            let digits = _mm_and_si128(
+                _mm_cmpgt_epi8(raw, _mm_set1_epi8(b'/' as i8)),
+                _mm_cmpgt_epi8(_mm_set1_epi8(b':' as i8), raw),
+            );
+            let letters = _mm_and_si128(
+                _mm_cmpgt_epi8(lower, _mm_set1_epi8(b'`' as i8)),
+                _mm_cmpgt_epi8(_mm_set1_epi8(b'{' as i8), lower),
+            );
+            let count =
+                (_mm_movemask_epi8(_mm_or_si128(digits, letters)) as u32).trailing_ones() as usize;
+            let mask = _mm_cmpgt_epi8(
+                _mm_set1_epi8(count as i8),
+                _mm_set_epi8(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0),
+            );
+            _mm_storeu_si128(
+                token.as_mut_ptr().add(length).cast(),
+                _mm_and_si128(lower, mask),
+            );
+            count
+        };
+        length += count;
+        *pos += count;
+        if count != 16 {
+            return length;
+        }
+    }
+    while *pos < input.len() && input[*pos].is_ascii_alphanumeric() {
+        token[length] = input[*pos].to_ascii_lowercase();
+        length += 1;
+        *pos += 1;
+    }
+    length
 }
 fn parse(
     input: &[u8],
     dictionary: &Table<[u8; 32], usize>,
-    needed: &[bool],
-    a: &Automaton,
-    phrases: usize,
-) -> Parsed {
-    let doc_id = |bytes: &[u8]| {
-        bytes
-            .iter()
-            .take_while(|&&b| b != b'\t')
-            .fold(0u32, |n, &b| n * 10 + u32::from(b - b'0'))
-    };
-    let base = if input.is_empty() { 0 } else { doc_id(input) };
-    let documents = if input.is_empty() {
-        0
-    } else {
-        let last = input[..input.len() - 1]
-            .iter()
-            .rposition(|&b| b == b'\n')
-            .map_or(0, |p| p + 1);
-        doc_id(&input[last..]) as usize + 1
-    };
-    let local_documents = documents - base as usize;
-    let mut out = Parsed {
-        postings: vec![Set::Sparse(Vec::new()); dictionary.len()],
-        base,
-        phrases: vec![Summary::default(); phrases],
-        documents: 0,
-    };
-    let mut last = vec![u32::MAX; phrases];
+    anchors: &[Vec<usize>],
+    queries: &[Query],
+    clauses: &[Clause],
+    checks: &[Vec<(usize, usize)>],
+) -> Partial {
+    let mut results = Partial::new(queries.len());
+    let mut touched_terms = Vec::new();
+    let mut matched = vec![u32::MAX; queries.len()];
+    let mut bits = vec![0u64; dictionary.len()];
+    let mut query_bits = vec![0u64; queries.len()];
+    let mut touched = Vec::new();
+    let mut base = 0;
+    let mut candidates = Vec::new();
+
+    let mut tokens = Vec::new();
+    let mut phrase_candidates = Vec::new();
     let mut pos = 0;
     let mut token = [0u8; 32];
     while pos < input.len() {
@@ -232,202 +346,75 @@ fn parse(
             pos += 1;
         }
         pos += 1;
-        out.documents = doc as usize + 1;
-        let mut state = 0;
+        let block = doc & !63;
+        if block != base {
+            flush(
+                base,
+                &mut bits,
+                &mut touched_terms,
+                &candidates,
+                clauses,
+                &mut query_bits,
+                &mut touched,
+                &mut results,
+            );
+            candidates.clear();
+            base = block;
+        }
+        tokens.clear();
+        phrase_candidates.clear();
         while input[pos] != b'\n' {
             token.fill(0);
-            let mut len = 0;
-            while input[pos].is_ascii_alphanumeric() {
-                token[len] = input[pos].to_ascii_lowercase();
-                len += 1;
-                pos += 1;
-            }
+            let len = read_token(input, &mut pos, &mut token);
             if len == 0 {
                 pos += 1;
                 continue;
             }
-            if let Some(&term) = dictionary.get(&token) {
-                if needed[term] {
-                    out.postings[term].insert(doc, base, local_documents);
+            let term = dictionary.get(&token).copied().unwrap_or(usize::MAX);
+            tokens.push(term);
+            if term != usize::MAX {
+                if bits[term] == 0 {
+                    touched_terms.push(term);
+                    candidates.extend_from_slice(&anchors[term]);
                 }
-                let mut next = a.next(state, term);
-                while state != 0 && next == 0 {
-                    state = a.nodes[state].fail as usize;
-                    next = a.next(state, term);
-                }
-                state = next;
-                let mut found = state;
-                while found != 0 {
-                    let mut terminal = a.nodes[found].terminal;
-                    while terminal != 0 {
-                        let query = terminal as usize - 1;
-                        if last[query] != doc {
-                            last[query] = doc;
-                            out.phrases[query].add(doc);
-                        }
-                        terminal = a.next_query[query];
+                bits[term] |= 1u64 << (doc - base);
+                for &(id, anchor) in &checks[term] {
+                    if tokens.len() > anchor {
+                        phrase_candidates.push((id, tokens.len() - 1 - anchor));
                     }
-                    found = a.nodes[found].output as usize;
                 }
-            } else {
-                state = 0;
+            }
+            if input[pos] != b'\n' {
+                pos += 1;
+            }
+        }
+        for &(id, start) in &phrase_candidates {
+            let terms = &queries[id].terms;
+            if matched[id] != doc
+                && tokens.get(start..start + terms.len()) == Some(terms.as_slice())
+            {
+                matched[id] = doc;
+                results.add(id, doc);
             }
         }
         pos += 1;
     }
-    out
-}
-
-#[derive(Clone)]
-enum Set {
-    Sparse(Vec<u32>),
-    Dense(Vec<u64>),
-}
-impl Set {
-    fn insert(&mut self, doc: u32, base: u32, documents: usize) {
-        match self {
-            Self::Sparse(ids) => {
-                if ids.last() != Some(&doc) {
-                    ids.push(doc);
-                }
-                if ids.len() > (documents / 32).max(64) {
-                    let mut bits = vec![0; documents.div_ceil(64)];
-                    for &id in ids.iter() {
-                        let id = (id - base) as usize;
-                        bits[id / 64] |= 1 << (id % 64);
-                    }
-                    *self = Self::Dense(bits);
-                }
-            }
-            Self::Dense(bits) => {
-                let id = (doc - base) as usize;
-                bits[id / 64] |= 1 << (id % 64);
-            }
-        }
-    }
-    fn visit(&self, base: u32, mut f: impl FnMut(u32)) {
-        match self {
-            Self::Sparse(ids) => {
-                for &id in ids {
-                    f(id);
-                }
-            }
-            Self::Dense(words) => {
-                for (i, &word) in words.iter().enumerate() {
-                    let mut bits = word;
-                    while bits != 0 {
-                        f(base + (i * 64 + bits.trailing_zeros() as usize) as u32);
-                        bits &= bits - 1;
-                    }
-                }
-            }
-        }
-    }
-    fn count(&self) -> usize {
-        match self {
-            Self::Sparse(ids) => ids.len(),
-            Self::Dense(bits) => bits.iter().map(|n| n.count_ones() as usize).sum(),
-        }
-    }
-
-    fn contains(&self, id: u32) -> bool {
-        match self {
-            Self::Sparse(ids) => ids.binary_search(&id).is_ok(),
-            Self::Dense(bits) => bits[id as usize / 64] & (1 << (id % 64)) != 0,
-        }
-    }
-    fn combine(&mut self, rhs: &Self, op: u8, documents: usize) {
-        match (&mut *self, rhs) {
-            (Self::Dense(left), Self::Dense(right)) => {
-                for (a, b) in left.iter_mut().zip(right) {
-                    *a = match op {
-                        b'A' => *a & b,
-                        b'O' => *a | b,
-                        _ => *a & !b,
-                    };
-                }
-            }
-            (Self::Dense(left), Self::Sparse(right)) if op != b'A' => {
-                for &id in right {
-                    let bit = 1 << (id % 64);
-                    if op == b'O' {
-                        left[id as usize / 64] |= bit;
-                    } else {
-                        left[id as usize / 64] &= !bit;
-                    }
-                }
-            }
-            (Self::Dense(_), Self::Sparse(right)) => {
-                *self = Self::Sparse(
-                    right
-                        .iter()
-                        .copied()
-                        .filter(|&id| self.contains(id))
-                        .collect(),
-                );
-            }
-            (Self::Sparse(left), _) if op != b'O' => {
-                left.retain(|&id| rhs.contains(id) == (op == b'A'));
-            }
-            (Self::Sparse(left), Self::Dense(right)) => {
-                let mut bits = right.clone();
-                for &id in left.iter() {
-                    bits[id as usize / 64] |= 1 << (id % 64);
-                }
-                *self = Self::Dense(bits);
-            }
-            (Self::Sparse(left), Self::Sparse(right)) => {
-                let mut merged = Vec::with_capacity(left.len() + right.len());
-                let (mut x, mut y) = (0, 0);
-                while x < left.len() && y < right.len() {
-                    let a = left[x];
-                    let b = right[y];
-                    merged.push(a.min(b));
-                    x += usize::from(a <= b);
-                    y += usize::from(b <= a);
-                }
-                merged.extend_from_slice(&left[x..]);
-                merged.extend_from_slice(&right[y..]);
-                *self = Self::from_sorted(merged, documents);
-            }
-        }
-    }
-    fn from_sorted(ids: Vec<u32>, documents: usize) -> Self {
-        if ids.len() <= documents / 32 {
-            return Self::Sparse(ids);
-        }
-        let mut bits = vec![0; documents.div_ceil(64)];
-        for id in ids {
-            bits[id as usize / 64] |= 1 << (id % 64);
-        }
-        Self::Dense(bits)
-    }
-    fn summary(&self) -> Summary {
-        let mut summary = Summary::default();
-        match self {
-            Self::Sparse(ids) => {
-                for &id in ids {
-                    summary.add(id);
-                }
-            }
-            Self::Dense(bits) => {
-                for (word, &bits) in bits.iter().enumerate() {
-                    let mut bits = bits;
-                    while bits != 0 {
-                        summary.add((word * 64 + bits.trailing_zeros() as usize) as u32);
-                        bits &= bits - 1;
-                    }
-                }
-            }
-        }
-        summary
-    }
+    flush(
+        base,
+        &mut bits,
+        &mut touched_terms,
+        &candidates,
+        clauses,
+        &mut query_bits,
+        &mut touched,
+        &mut results,
+    );
+    results
 }
 
 fn solve(data: &Path, out: &Path) -> io::Result<()> {
     let query_text = fs::read(data.join("queries.txt"))?;
     let mut dictionary: Table<[u8; 32], usize> = Table::default();
-    let mut needed = Vec::new();
     let mut queries = Vec::new();
     let mut phrases = 0;
     for line in query_text
@@ -457,12 +444,10 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
                 None => {
                     let id = dictionary.len();
                     dictionary.insert(key, id);
-                    needed.push(false);
                     id
                 }
             };
             query.terms.push(id);
-            needed[id] |= !phrase;
         }
         if phrase {
             query.phrase = Some(phrases);
@@ -470,14 +455,25 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
         }
         queries.push(query);
     }
-    let automaton = Automaton::build(&queries, dictionary.len());
     let mapping = Mapping::open(&data.join("docs.txt"))?;
     let input = mapping.bytes();
+    let (anchors, clauses, frequencies) = anchors(input, &dictionary, &queries);
+    let mut checks = vec![Vec::new(); dictionary.len()];
+    for (id, query) in queries
+        .iter()
+        .enumerate()
+        .filter(|(_, q)| q.phrase.is_some())
+    {
+        let anchor = (0..query.terms.len())
+            .min_by_key(|&i| frequencies[query.terms[i]])
+            .unwrap();
+        checks[query.terms[anchor]].push((id, anchor));
+    }
     let workers = thread::available_parallelism()
         .map_or(1, usize::from)
         .min(12)
         .min(input.len().div_ceil(64 * 1024).max(1));
-    let mut parsed = thread::scope(|scope| {
+    let parsed = thread::scope(|scope| {
         let mut jobs = Vec::new();
         let mut start = 0;
         for worker in 0..workers {
@@ -487,72 +483,40 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
             }
             let chunk = &input[start..end];
             let dictionary = &dictionary;
-            let needed = &needed;
-            let automaton = &automaton;
-            jobs.push(scope.spawn(move || parse(chunk, dictionary, needed, automaton, phrases)));
+            let queries = &queries;
+            let anchors = &anchors;
+            let clauses = &clauses;
+            let checks = &checks;
+            jobs.push(
+                scope.spawn(move || parse(chunk, dictionary, anchors, queries, clauses, checks)),
+            );
             start = end;
         }
         jobs.into_iter()
             .map(|job| job.join().unwrap())
             .collect::<Vec<_>>()
     });
-    let documents = parsed.iter().map(|p| p.documents).max().unwrap_or(0);
-    let mut phrase_results = vec![Summary::default(); phrases];
-    for part in &parsed {
-        for (result, summary) in phrase_results.iter_mut().zip(&part.phrases) {
-            result.merge(summary);
-        }
-    }
-    let mut index = Vec::with_capacity(dictionary.len());
-    for term in 0..dictionary.len() {
-        let total: usize = parsed.iter().map(|part| part.postings[term].count()).sum();
-        let mut merged = if total > documents / 32 {
-            Set::Dense(vec![0; documents.div_ceil(64)])
-        } else {
-            Set::Sparse(Vec::with_capacity(total))
-        };
-        for part in &mut parsed {
-            let postings = std::mem::replace(&mut part.postings[term], Set::Sparse(Vec::new()));
-            match &mut merged {
-                Set::Sparse(ids) => postings.visit(part.base, |id| ids.push(id)),
-                Set::Dense(bits) => {
-                    postings.visit(part.base, |id| bits[id as usize / 64] |= 1 << (id % 64))
-                }
+    let mut results = vec![Summary::default(); queries.len()];
+    for part in parsed {
+        for (result, stat) in results.iter_mut().zip(part.stats) {
+            if stat.count == 0 {
+                continue;
             }
+            let have = result.count.min(10) as usize;
+            let take = (10 - have).min(stat.count as usize);
+            result.first[have..have + take]
+                .copy_from_slice(&part.first[stat.first as usize][..take]);
+            result.count += stat.count;
+            result.sum += stat.sum;
         }
-        index.push(merged);
     }
-    drop(parsed);
-    let results = thread::scope(|scope| {
-        let mut jobs = Vec::new();
-        for chunk in queries.chunks(queries.len().div_ceil(workers).max(1)) {
-            let index = &index;
-            let phrase_results = &phrase_results;
-            jobs.push(scope.spawn(move || {
-                let mut output = Vec::new();
-                for query in chunk {
-                    if let Some(id) = query.phrase {
-                        phrase_results[id].write(&mut output);
-                    } else {
-                        let mut result = index[query.terms[0]].clone();
-                        for (&op, &term) in query.ops.iter().zip(&query.terms[1..]) {
-                            result.combine(&index[term], op, documents);
-                        }
-                        result.summary().write(&mut output);
-                    }
-                }
-                output
-            }));
-        }
-        jobs.into_iter()
-            .map(|job| job.join().unwrap())
-            .collect::<Vec<_>>()
-    });
+    let mut bytes = Vec::new();
+    for result in results {
+        result.write(&mut bytes);
+    }
     fs::create_dir_all(out)?;
     let mut output = File::create(out.join("results.txt"))?;
-    for bytes in results {
-        output.write_all(&bytes)?;
-    }
+    output.write_all(&bytes)?;
     Ok(())
 }
 fn main() -> io::Result<()> {

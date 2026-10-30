@@ -5,10 +5,12 @@
 | 0 | Organisers' unchanged Python reference | | 72.69 | 893 | 0 |
 | 1 | Parallel parsing, forward/reverse CSR, sparse bidirectional Dijkstra, balanced frontiers | run-c88839436741 | 0.459081 | 170.385408 | 56.211682 |
 | 2 | Twelve query workers | run-43460285dd9e | 0.354099 | 171.261952 | 59.008513 |
+| 3 | Compact queue entries with full-width fallback | run-b8e527b07f2c | 0.326074 | 171.425792 | 59.490467 |
 
 ## Rust implementation, 2026-10-30
 
-The target for this track is at least 59.238 live-board points. The first Rust
+The 59.238-point target is achieved: commit `7e74e404` scores 59.490467 on the
+live board with all gates passing, S=305 and D=1. The first Rust
 run passed all gates but scored 56.211682 at commit `fbd3f2b`, with S=269 and D=1.
 It did not meet the target; local measurements below are separate diagnostics.
 
@@ -62,7 +64,9 @@ the compact heap first preserves the same exact ordering and uint64 answers.
 This reduces the heap footprint and comparison/movement cost for shorter paths
 without assuming a bound on the final distance. A native full-seed-1 comparison
 took about 134.1 ms before and 118.4 ms after the change. These are local Apple
-Silicon diagnostics; the updated live-board score remains pending.
+Silicon diagnostics. The live-board run `run-b8e527b07f2c` at commit `7e74e404`
+measured 0.326074 seconds, 171,425,792 bytes, S=305 and D=1 for 59.490467
+points. All gates passed, exceeding the requested 59.238-point target.
 
 The compact-queue candidate passes all five differential suites, including paths
 above uint32 and randomized all-pairs queries with uint32 maximum weights. The
