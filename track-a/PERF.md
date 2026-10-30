@@ -178,3 +178,28 @@ production A unchanged. Ten differential suites, a supplemental single-worker
 persistence fixture, tiny/sample/full seed 1, sample 42's unchanged Python
 oracle, and Docker full seed 42 all pass. Reproduction and evidence are in
 [`experiments/2026-10-30-compact-graphs/`](../experiments/2026-10-30-compact-graphs/).
+
+
+## Step 5: single-pass compact records (2026-10-30; Intel trial)
+
+Replace the full-file hour index and second parsing pass with one parse per
+line into private endpoint dictionaries and per-hour chains of 16 KB blocks.
+Ordinary records use four bytes (20 latency bits, 11 endpoint bits, one error
+bit); exact side lists preserve larger latencies and IDs. AVX2 classifies the
+64-byte window after each timestamp; long endpoints and the final tail remain
+bounded. Merge/sort endpoint dictionaries once, map local IDs to global ranks,
+and count/scatter each hour's latencies into contiguous percentile groups.
+
+Release consumed block prefixes in batches after acquiring hour-completion
+flags. One anonymous mapping per parser avoids allocation per block; unused
+reserve pages remain untouched. No assumption bounds the disorder of hours:
+late records remain in their hour chain and can postpone page reclamation.
+The source design was informed by
+[Cache Me's scored A implementation](https://github.com/manusingh090/speed-demon-2026-entry/blob/836c19e46966bcbe9e91e79883f148059402f1c9/track-a/main.cpp).
+
+Baseline for the Intel comparison: historical best `run-e3bf174864d4` at
+`420d664`, T=0.049090 s, M=19,177,472 bytes, S=272, D=1,
+points=75.973214. Local runtime tests and benchmarks are explicitly skipped per
+user instruction. Formatting and native/x86_64 Linux compilation checks pass.
+The candidate's correctness gates, runtime, memory, counted source and score
+await the official board. No gain is claimed in advance.

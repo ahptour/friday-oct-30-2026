@@ -289,3 +289,23 @@ matches the unchanged reference's published or previously verified output.
 Production formatting, Clippy with warnings denied, and offline Docker sandbox
 checks on both full seeds pass. Complete Rust sources, raw rows and reproduction are in
 [`experiments/2026-10-30-compact-graphs/`](../experiments/2026-10-30-compact-graphs/).
+
+
+## Step 8: predecessor-aware queue (2026-10-30; Intel trial)
+
+Carry each discovered node's predecessor in its heap entry. Ordinary entries
+pack distance22/node21/parent21 into the existing eight-byte common heap word;
+full-width tuples preserve all larger values. Compare both heap minima because
+wide node IDs can carry distances smaller than a compact entry. Stale-entry
+checks and the bidirectional stopping condition remain unchanged.
+
+An immediate return to the predecessor cannot improve its known distance under
+nonnegative weights, so skip that arc before probing the distance map. Prior
+instrumentation of full seeds 1/42 found 6,963,254/7,314,109 such arcs, about
+33.2% of all relaxations. This count is an opportunity estimate, not a runtime
+speedup claim. No reachability preprocessing or graph mutation is introduced.
+
+Baseline: `run-6082ca272e2a` at `c17406b`, T=0.316613 s,
+M=97,452,032 bytes, S=361, D=1, points=61.713950. Local runtime tests and
+benchmarks are skipped per user instruction. Formatting and native/x86_64 Linux
+compilation checks pass; the Intel correctness gates and score are pending.

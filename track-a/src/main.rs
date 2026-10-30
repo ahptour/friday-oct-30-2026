@@ -6,7 +6,8 @@ use std::hash::{BuildHasherDefault, Hasher};
 use std::io::{self, Write};
 use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::thread;
 
@@ -20,10 +21,30 @@ unsafe extern "C" {
         offset: i64,
     ) -> *mut c_void;
     fn munmap(addr: *mut c_void, len: usize) -> i32;
+    fn madvise(addr: *mut c_void, len: usize, advice: i32) -> i32;
 }
 
 struct Mapping(*mut c_void, usize);
+// Input mappings are read-only; arena mutation has exclusive ownership during
+// parsing. Later readers consume disjoint hour blocks before reclamation.
+unsafe impl Send for Mapping {}
+unsafe impl Sync for Mapping {}
 impl Mapping {
+    fn allocate(len: usize) -> io::Result<Self> {
+        #[cfg(target_os = "linux")]
+        let flags = 0x22; // MAP_PRIVATE | MAP_ANONYMOUS
+        #[cfg(not(target_os = "linux"))]
+        let flags = 0x1002;
+        let ptr = unsafe { mmap(std::ptr::null_mut(), len, 3, flags, -1, 0) };
+        if ptr as isize == -1 {
+            return Err(io::Error::last_os_error());
+        }
+        #[cfg(target_os = "linux")]
+        unsafe {
+            madvise(ptr, len, 15);
+        } // Keep partially used arenas off huge pages.
+        Ok(Self(ptr, len))
+    }
     fn bytes(&self) -> &[u8] {
         // The successful mapping is read-only, and this borrow cannot outlive it.
         unsafe { std::slice::from_raw_parts(self.0.cast(), self.1) }
@@ -59,51 +80,210 @@ impl Hasher for FastHasher {
     }
 }
 
-#[derive(Default)]
-struct Group {
-    latencies: Vec<u32>,
-    errors: u64,
+const BLOCK_BYTES: usize = 16 * 1024;
+const CAPACITY: usize = (BLOCK_BYTES - 16) / 4;
+const NONE: u32 = u32::MAX;
+#[repr(C)]
+struct Block {
+    previous: u32,
+    count: u32,
+    hour: u32,
+    reserved: u32,
+    records: [u32; CAPACITY],
 }
-type Groups<'a> = HashMap<&'a [u8], Group, BuildHasherDefault<FastHasher>>;
-
-// Locate the first space eight bytes at a time; the scalar tail stays in bounds.
-fn space(input: &[u8], mut pos: usize) -> usize {
+struct Part<'a> {
+    arena: Mapping,
+    used: usize,
+    last: [u32; 72],
+    wide: [Vec<(u32, u32)>; 72],
+    labels: [[u8; 13]; 72],
+    names: Vec<&'a [u8]>,
+    rank: Vec<usize>,
+}
+impl Part<'_> {
+    fn push(&mut self, hour: usize, id: u32, error: u32, latency: u32) {
+        let key = id.checked_mul(2).unwrap() | error;
+        if id >= 2048 || latency >= 1 << 20 {
+            self.wide[hour].push((latency, key));
+            return;
+        }
+        let blocks = self.arena.0.cast::<Block>();
+        let mut index = self.last[hour];
+        if index == NONE || unsafe { (*blocks.add(index as usize)).count as usize == CAPACITY } {
+            assert!(self.used < self.arena.1 / BLOCK_BYTES);
+            index = u32::try_from(self.used).unwrap();
+            let block = unsafe { &mut *blocks.add(self.used) };
+            block.previous = self.last[hour];
+            block.hour = hour as u32;
+            block.count = 0;
+            self.last[hour] = index;
+            self.used += 1;
+        }
+        let block = unsafe { &mut *blocks.add(index as usize) };
+        block.records[block.count as usize] = (latency << 12) | key;
+        block.count += 1;
+    }
+    fn each(&self, hour: usize, mut visit: impl FnMut(usize, u32, u32)) {
+        let mut index = self.last[hour];
+        while index != NONE {
+            // Only this hour's worker reads this block, before marking it done.
+            let block = unsafe { &*self.arena.0.cast::<Block>().add(index as usize) };
+            for &word in &block.records[..block.count as usize] {
+                visit(
+                    self.rank[((word >> 1) & 2047) as usize],
+                    word & 1,
+                    word >> 12,
+                );
+            }
+            index = block.previous;
+        }
+        for &(latency, key) in &self.wide[hour] {
+            visit(self.rank[(key >> 1) as usize], key & 1, latency);
+        }
+    }
+    fn release(&self, kept: &mut usize, finished: &[AtomicBool; 72]) {
+        let mut end = *kept;
+        while end < self.used {
+            let block = unsafe { &*self.arena.0.cast::<Block>().add(end) };
+            if !finished[block.hour as usize].load(Ordering::Acquire) {
+                break;
+            }
+            end += 1;
+        }
+        if end - *kept >= 16 || (end == self.used && end > *kept) {
+            // Whole aligned blocks only; Acquire observes all readers finishing.
+            unsafe {
+                madvise(
+                    self.arena.0.cast::<u8>().add(*kept * BLOCK_BYTES).cast(),
+                    (end - *kept) * BLOCK_BYTES,
+                    4,
+                );
+            }
+            *kept = end;
+        }
+    }
+}
+fn find(input: &[u8], mut pos: usize, byte: u8) -> usize {
+    let repeated = u64::from(byte) * 0x0101010101010101;
     while pos + 8 <= input.len() {
-        let word = u64::from_le_bytes(input[pos..pos + 8].try_into().unwrap()) ^ 0x2020202020202020;
+        let word = u64::from_le_bytes(input[pos..pos + 8].try_into().unwrap()) ^ repeated;
         let matches = word.wrapping_sub(0x0101010101010101) & !word & 0x8080808080808080;
         if matches != 0 {
             return pos + matches.trailing_zeros() as usize / 8;
         }
         pos += 8;
     }
-    while input[pos] != b' ' {
+    while input[pos] != byte {
         pos += 1;
     }
     pos
 }
-
-fn parse_groups<'a>(input: &'a [u8], groups: &mut Groups<'a>, label: &mut [u8; 13]) {
+type Scan = unsafe fn(*const u8) -> (u64, u64);
+unsafe fn scalar_masks(ptr: *const u8) -> (u64, u64) {
+    let (mut spaces, mut lines) = (0, 0);
+    for i in 0..64 {
+        let byte = unsafe { *ptr.add(i) };
+        spaces |= u64::from(byte == b' ') << i;
+        lines |= u64::from(byte == b'\n') << i;
+    }
+    (spaces, lines)
+}
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn vector_masks(ptr: *const u8) -> (u64, u64) {
+    use std::arch::x86_64::*;
+    let a = unsafe { _mm256_loadu_si256(ptr.cast()) };
+    let b = unsafe { _mm256_loadu_si256(ptr.add(32).cast()) };
+    let mask = |byte| {
+        let value = _mm256_set1_epi8(byte);
+        u64::from(_mm256_movemask_epi8(_mm256_cmpeq_epi8(a, value)) as u32)
+            | (u64::from(_mm256_movemask_epi8(_mm256_cmpeq_epi8(b, value)) as u32) << 32)
+    };
+    (mask(b' ' as i8), mask(b'\n' as i8))
+}
+fn classifier() -> Scan {
+    #[cfg(target_arch = "x86_64")]
+    if std::is_x86_feature_detected!("avx2") {
+        return vector_masks;
+    }
+    scalar_masks
+}
+fn latency(input: &[u8]) -> u32 {
+    let mut value = 0u64;
+    let mut chunks = input.chunks_exact(8);
+    for chunk in &mut chunks {
+        let v = u64::from_le_bytes(chunk.try_into().unwrap()) - 0x3030303030303030;
+        let v = (v & 0x00ff00ff00ff00ff) * 10 + ((v >> 8) & 0x00ff00ff00ff00ff);
+        let v = (v & 0x0000ffff0000ffff) * 100 + ((v >> 16) & 0x0000ffff0000ffff);
+        value = value * 100_000_000 + (v & 0xffffffff) * 10_000 + (v >> 32);
+    }
+    for &byte in chunks.remainder() {
+        value = value * 10 + u64::from(byte - b'0');
+    }
+    value as u32
+}
+fn parse(input: &[u8]) -> io::Result<Part<'_>> {
+    // The shortest legal line has 40 bytes; allow one partial block per hour.
+    let bytes = (input.len() / 40 / CAPACITY + 73) * BLOCK_BYTES;
+    let mut part = Part {
+        arena: Mapping::allocate(bytes)?,
+        used: 0,
+        last: [NONE; 72],
+        wide: std::array::from_fn(|_| Vec::new()),
+        labels: [[0; 13]; 72],
+        names: Vec::new(),
+        rank: Vec::new(),
+    };
+    let mut ids: HashMap<&[u8], u32, BuildHasherDefault<FastHasher>> = HashMap::default();
+    let scan = classifier();
     let mut pos = 0;
     while pos < input.len() {
-        label.copy_from_slice(&input[pos..pos + 13]);
-        pos += 28;
-        pos = space(input, pos);
-        pos += 1;
-        let start = pos;
-        pos = space(input, pos);
-        let endpoint = &input[start..pos];
-        let error = input[pos + 1] == b'5';
-        pos += 5;
-        let mut latency = 0u32;
-        while input[pos] != b'\n' {
-            latency = latency * 10 + u32::from(input[pos] - b'0');
-            pos += 1;
+        let day = (input[pos + 8] - b'0') * 10 + input[pos + 9] - b'0';
+        let day = if day >= 30 { day - 30 } else { day + 1 };
+        let hour = usize::from(day) * 24
+            + usize::from((input[pos + 11] - b'0') * 10 + input[pos + 12] - b'0')
+            - 18;
+        if part.labels[hour][0] == 0 {
+            part.labels[hour].copy_from_slice(&input[pos..pos + 13]);
         }
-        pos += 1;
-        let group = groups.entry(endpoint).or_default();
-        group.latencies.push(latency);
-        group.errors += u64::from(error);
+        let m = pos + 28;
+        let remaining = &input[m..];
+        let mut tail;
+        let ptr = if remaining.len() >= 64 {
+            remaining.as_ptr()
+        } else {
+            tail = [0u8; 64];
+            tail[..remaining.len()].copy_from_slice(remaining);
+            tail.as_ptr()
+        };
+        let (spaces, lines) = unsafe { scan(ptr) };
+        let start = m + spaces.trailing_zeros() as usize + 1;
+        let second = spaces & (spaces - 1);
+        let end = if second != 0 {
+            m + second.trailing_zeros() as usize
+        } else {
+            find(input, start, b' ')
+        };
+        let eol = if lines != 0 {
+            m + lines.trailing_zeros() as usize
+        } else {
+            find(input, end + 5, b'\n')
+        };
+        let name = &input[start..end];
+        let next_id = u32::try_from(part.names.len()).unwrap();
+        let id = *ids.entry(name).or_insert_with(|| {
+            part.names.push(name);
+            next_id
+        });
+        part.push(
+            hour,
+            id,
+            u32::from(input[end + 1] == b'5'),
+            latency(&input[end + 5..eol]),
+        );
+        pos = eol + 1;
     }
+    Ok(part)
 }
 
 fn percentiles(values: &mut [u32]) -> [u32; 3] {
@@ -122,57 +302,52 @@ fn percentiles(values: &mut [u32]) -> [u32; 3] {
     result
 }
 
-fn format_hour(label: [u8; 13], groups: Groups<'_>) -> Vec<u8> {
-    let mut output = Vec::new();
-    let mut groups: Vec<_> = groups.into_iter().collect();
-    groups.sort_unstable_by(|a, b| a.0.cmp(b.0));
-    for (endpoint, mut group) in groups {
-        let count = group.latencies.len() as u64;
-        let [p50, p95, p99] = percentiles(&mut group.latencies);
-        let ppm = group.errors * 1_000_000 / count;
-        output.extend_from_slice(&label);
-        output.extend_from_slice(b":00:00Z ");
-        output.extend_from_slice(endpoint);
-        writeln!(output, " {count} {p50} {p95} {p99} {} {ppm}", group.errors).unwrap();
+fn format_hour(
+    hour: usize,
+    parts: &[Part<'_>],
+    names: &[&[u8]],
+    starts: &mut [usize],
+    errors: &mut [u64],
+    values: &mut Vec<u32>,
+) -> Vec<u8> {
+    starts.fill(0);
+    errors.fill(0);
+    for part in parts {
+        part.each(hour, |rank, error, _| {
+            starts[rank + 1] += 1;
+            errors[rank] += u64::from(error);
+        });
     }
-    output
-}
-
-fn index_hours(input: &[u8], base: usize) -> [Vec<(usize, usize)>; 72] {
-    let mut ranges: [Vec<(usize, usize)>; 72] = std::array::from_fn(|_| Vec::new());
-    let mut pos = 0;
-    while pos < input.len() {
-        let start = pos;
-        // Every seed uses the specified 72-hour span, crossing Oct 31 to Nov 1.
-        let day = (input[pos + 8] - b'0') * 10 + input[pos + 9] - b'0';
-        let day = if day >= 30 { day - 30 } else { day + 1 };
-        let hour = (input[pos + 11] - b'0') * 10 + input[pos + 12] - b'0';
-        let hour = usize::from(day) * 24 + usize::from(hour) - 18;
-        pos += 28;
-        while pos + 8 <= input.len() {
-            let word =
-                u64::from_le_bytes(input[pos..pos + 8].try_into().unwrap()) ^ 0x0a0a0a0a0a0a0a0a;
-            let matches = word.wrapping_sub(0x0101010101010101) & !word & 0x8080808080808080;
-            if matches != 0 {
-                pos += matches.trailing_zeros() as usize / 8;
-                break;
-            }
-            pos += 8;
-        }
-        while input[pos] != b'\n' {
-            pos += 1;
-        }
-        pos += 1;
-        // Coalesce only adjacent lines; later returns to this hour stay indexed.
-        if let Some(last) = ranges[hour].last_mut()
-            && last.1 == base + start
-        {
-            last.1 = base + pos;
+    for i in 1..starts.len() {
+        starts[i] += starts[i - 1];
+    }
+    values.resize(*starts.last().unwrap(), 0);
+    let mut cursor = starts[..names.len()].to_vec();
+    for part in parts {
+        part.each(hour, |rank, _, latency| {
+            values[cursor[rank]] = latency;
+            cursor[rank] += 1;
+        });
+    }
+    let label = parts
+        .iter()
+        .find(|part| part.labels[hour][0] != 0)
+        .map(|part| part.labels[hour]);
+    let mut output = Vec::new();
+    for (rank, &name) in names.iter().enumerate() {
+        let count = starts[rank + 1] - starts[rank];
+        if count == 0 {
             continue;
         }
-        ranges[hour].push((base + start, base + pos));
+        let [p50, p95, p99] = percentiles(&mut values[starts[rank]..starts[rank + 1]]);
+        let errors = errors[rank];
+        let ppm = errors * 1_000_000 / count as u64;
+        output.extend_from_slice(&label.unwrap());
+        output.extend_from_slice(b":00:00Z ");
+        output.extend_from_slice(name);
+        writeln!(output, " {count} {p50} {p95} {p99} {errors} {ppm}").unwrap();
     }
-    ranges
+    output
 }
 
 fn summarize(data: &Path, out: &Path) -> io::Result<()> {
@@ -194,7 +369,7 @@ fn summarize(data: &Path, out: &Path) -> io::Result<()> {
         .map_or(1, usize::from)
         .min(12)
         .min(size.div_ceil(64 * 1024));
-    let ranges = thread::scope(|scope| {
+    let mut parts = thread::scope(|scope| {
         let mut jobs = Vec::new();
         let mut start = 0;
         for worker in 0..workers {
@@ -203,35 +378,51 @@ fn summarize(data: &Path, out: &Path) -> io::Result<()> {
                 end += 1;
             }
             let chunk = &input[start..end];
-            jobs.push(scope.spawn(move || index_hours(chunk, start)));
+            jobs.push(scope.spawn(move || parse(chunk)));
             start = end;
         }
         jobs.into_iter()
             .map(|job| job.join().unwrap())
-            .collect::<Vec<_>>()
-    });
+            .collect::<io::Result<Vec<_>>>()
+    })?;
+    let mut names: Vec<_> = parts
+        .iter()
+        .flat_map(|part| part.names.iter().copied())
+        .collect();
+    names.sort_unstable();
+    names.dedup();
+    for part in &mut parts {
+        part.rank = part
+            .names
+            .iter()
+            .map(|name| names.binary_search(name).unwrap())
+            .collect();
+    }
     let next = AtomicUsize::new(0);
+    let finished: [AtomicBool; 72] = std::array::from_fn(|_| AtomicBool::new(false));
+    let kept = Mutex::new(vec![0; parts.len()]);
     let (send, receive) = mpsc::channel();
     thread::scope(|scope| {
         for _ in 0..workers {
-            let next = &next;
-            let ranges = &ranges;
-            let send = send.clone();
+            let (next, parts, names, finished, kept, send) =
+                (&next, &parts, &names, &finished, &kept, send.clone());
             scope.spawn(move || {
+                let mut starts = vec![0; names.len() + 1];
+                let mut errors = vec![0; names.len()];
+                let mut values = Vec::new();
                 loop {
-                    // One worker owns all ranges and latency groups for this hour.
                     let hour = next.fetch_add(1, Ordering::Relaxed);
                     if hour >= 72 {
                         break;
                     }
-                    let mut groups = Groups::default();
-                    let mut label = [0; 13];
-                    for part in ranges {
-                        for &(start, end) in &part[hour] {
-                            parse_groups(&input[start..end], &mut groups, &mut label);
+                    let result =
+                        format_hour(hour, parts, names, &mut starts, &mut errors, &mut values);
+                    finished[hour].store(true, Ordering::Release);
+                    if let Ok(mut fronts) = kept.try_lock() {
+                        for (part, front) in parts.iter().zip(fronts.iter_mut()) {
+                            part.release(front, finished);
                         }
                     }
-                    let result = format_hour(label, groups);
                     if send.send((hour, result)).is_err() {
                         break;
                     }
