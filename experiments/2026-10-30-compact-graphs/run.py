@@ -6,6 +6,7 @@ import importlib.util
 import json
 from pathlib import Path
 import platform
+import shutil
 import statistics
 import subprocess
 import tempfile
@@ -46,9 +47,8 @@ def prepare(tracks):
                     ['git', 'show', f'{BASELINE}:track-{track}/{name}'], cwd=ROOT)
                 (directory / name).write_bytes(content)
             if variant != 'base':
-                subprocess.run(['patch', '--batch', '--forward', '-p1', '-i',
-                                str(HERE / f'{track}-{variant}.patch')],
-                               cwd=directory, check=True)
+                shutil.copyfile(HERE / 'variants' / f'{track}-{variant}' / 'main.rs',
+                                directory / 'src/main.rs')
 
 
 def build(tracks):

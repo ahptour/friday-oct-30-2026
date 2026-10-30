@@ -1,3 +1,4 @@
+use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::fs::{self, File};
@@ -85,26 +86,127 @@ fn number(input: &[u8], pos: &mut usize, delimiter: u8) -> u64 {
     n
 }
 
-fn field<'a>(input: &'a [u8], pos: &mut usize) -> (&'a [u8], u64) {
-    let quoted = input[*pos] == b'"';
-    *pos += usize::from(quoted);
-    let start = *pos;
-    let mut escapes = 0;
-    if quoted {
-        loop {
-            *pos = find(input, *pos, b'"');
-            if input[*pos + 1] != b'"' {
-                break;
-            }
-            escapes += 1;
-            *pos += 2;
-        }
-    } else {
-        *pos = find(input, *pos, b',');
+// Each classifier reads exactly 64 valid bytes; the final block is copied
+// into a padded stack buffer. Prefix parity carries across blocks, including
+// doubled quotes split between blocks and embedded newlines inside notes.
+type Classify = unsafe fn(*const u8) -> (u64, u64, u64);
+unsafe fn scalar_masks(ptr: *const u8) -> (u64, u64, u64) {
+    let (mut quotes, mut separators) = (0, 0);
+    for i in 0..64 {
+        let byte = unsafe { *ptr.add(i) };
+        quotes |= u64::from(byte == b'"') << i;
+        separators |= u64::from(byte == b',' || byte == b'\n') << i;
     }
-    let length = *pos - start;
-    *pos += 1 + usize::from(quoted);
-    (&input[start..start + length], length as u64 - escapes)
+    let mut inside = quotes;
+    for shift in [1, 2, 4, 8, 16, 32] {
+        inside ^= inside << shift;
+    }
+    (quotes, separators, inside)
+}
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2,pclmulqdq")]
+unsafe fn vector_masks(ptr: *const u8) -> (u64, u64, u64) {
+    use std::arch::x86_64::*;
+    let a = unsafe { _mm256_loadu_si256(ptr.cast()) };
+    let b = unsafe { _mm256_loadu_si256(ptr.add(32).cast()) };
+    let mask = |byte| {
+        let value = _mm256_set1_epi8(byte);
+        u64::from(_mm256_movemask_epi8(_mm256_cmpeq_epi8(a, value)) as u32)
+            | (u64::from(_mm256_movemask_epi8(_mm256_cmpeq_epi8(b, value)) as u32) << 32)
+    };
+    let quotes = mask(b'"' as i8);
+    let inside = _mm_clmulepi64_si128(_mm_cvtsi64_si128(quotes as i64), _mm_set1_epi8(-1), 0);
+    (
+        quotes,
+        mask(b',' as i8) | mask(b'\n' as i8),
+        _mm_cvtsi128_si64(inside) as u64,
+    )
+}
+fn classifier() -> Classify {
+    #[cfg(target_arch = "x86_64")]
+    if std::is_x86_feature_detected!("avx2") && std::is_x86_feature_detected!("pclmulqdq") {
+        return vector_masks;
+    }
+    scalar_masks
+}
+struct Structure<'a> {
+    input: &'a [u8],
+    classify: Classify,
+    next: usize,
+    base: usize,
+    bits: u64,
+    quotes: u64,
+    before: u64,
+    carry: u64,
+}
+impl<'a> Structure<'a> {
+    fn new(input: &'a [u8], start: usize) -> Self {
+        Self {
+            input,
+            classify: classifier(),
+            next: start,
+            base: start,
+            bits: 0,
+            quotes: 0,
+            before: 0,
+            carry: 0,
+        }
+    }
+    fn next(&mut self) -> (usize, u64) {
+        while self.bits == 0 {
+            if self.next >= self.input.len() {
+                return (
+                    self.input.len(),
+                    self.before + u64::from(self.quotes.count_ones()),
+                );
+            }
+            self.before += u64::from(self.quotes.count_ones());
+            self.base = self.next;
+            self.next += 64;
+            let mut tail;
+            let remaining = &self.input[self.base..];
+            let ptr = if remaining.len() >= 64 {
+                remaining.as_ptr()
+            } else {
+                tail = [0u8; 64];
+                tail[..remaining.len()].copy_from_slice(remaining);
+                tail.as_ptr()
+            };
+            let (quotes, separators, inside) = unsafe { (self.classify)(ptr) };
+            let inside = inside ^ self.carry;
+            self.carry = 0u64.wrapping_sub(inside >> 63);
+            self.quotes = quotes;
+            self.bits = separators & !inside;
+        }
+        let bit = self.bits.trailing_zeros();
+        self.bits &= self.bits - 1;
+        (
+            self.base + bit as usize,
+            self.before + u64::from((self.quotes & ((1u64 << bit) - 1)).count_ones()),
+        )
+    }
+}
+fn digits(input: &[u8]) -> u64 {
+    let mut value = 0;
+    let mut chunks = input.chunks_exact(8);
+    for chunk in &mut chunks {
+        let v = u64::from_le_bytes(chunk.try_into().unwrap()) - 0x3030303030303030;
+        let v = (v & 0x00ff00ff00ff00ff) * 10 + ((v >> 8) & 0x00ff00ff00ff00ff);
+        let v = (v & 0x0000ffff0000ffff) * 100 + ((v >> 16) & 0x0000ffff0000ffff);
+        value = value * 100_000_000 + (v & 0xffffffff) * 10_000 + (v >> 32);
+    }
+    for &byte in chunks.remainder() {
+        value = value * 10 + u64::from(byte - b'0');
+    }
+    value
+}
+fn prefetch<T>(value: &T) {
+    #[cfg(target_arch = "x86_64")]
+    unsafe {
+        std::arch::x86_64::_mm_prefetch((value as *const T).cast(), std::arch::x86_64::_MM_HINT_T0);
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    let _ = value;
 }
 
 fn load_regions(path: &Path) -> io::Result<(Vec<u8>, Vec<Vec<u8>>)> {
@@ -142,51 +244,73 @@ struct Group {
     names_distinct: u64,
 }
 #[derive(Default)]
-struct Entry {
-    key: AtomicU64,
-    countries: [AtomicU64; 4],
-}
+struct Head(UnsafeCell<[u8; 24]>);
+// Only the thread claiming a zero key writes its head; Release publishes it.
+// Readers acquire the published key before reading, and heads never change.
+unsafe impl Sync for Head {}
 struct Names<'a> {
-    slots: Vec<Entry>,
+    keys: Vec<AtomicU64>,
+    heads: Vec<Head>,
+    countries: Vec<[AtomicU64; 4]>,
     overflow: Mutex<HashMap<&'a [u8], [u64; 4], BuildHasherDefault<FastHasher>>>,
 }
 impl<'a> Names<'a> {
-    fn first(&self, input: &[u8], name: &'a [u8], country: usize) -> bool {
-        // CSV escaping is canonical, so encoded payload equality preserves decoded
-        // name equality. Both empty spellings have an empty payload.
-        let bit = 1 << (country % 64);
+    fn probe(&self, name: &[u8]) -> u64 {
+        let mut hash = FastHasher::default();
+        name.hash(&mut hash);
+        let hash = hash.finish();
+        let slot = hash as usize & (self.keys.len() - 1);
+        prefetch(&self.keys[slot]);
+        prefetch(&self.heads[slot]);
+        hash
+    }
+    fn intern(&self, input: &[u8], name: &[u8], hash: u64) -> Option<usize> {
         let start = name.as_ptr() as usize - input.as_ptr() as usize;
-        if start < u32::MAX as usize && name.len() <= u32::MAX as usize {
-            let key = ((start as u64 + 1) << 32) | name.len() as u64;
-            let mut hash = FastHasher::default();
-            name.hash(&mut hash);
+        if start < u32::MAX as usize && name.len() <= u16::MAX as usize {
+            // 0 is empty, 1 is busy; every published key has a nonzero offset.
+            let key = ((start as u64 + 1) << 32) | ((hash >> 48) << 16) | name.len() as u64;
             for probe in 0..32 {
-                let slot = &self.slots
-                    [(hash.finish() as usize).wrapping_add(probe) & (self.slots.len() - 1)];
-                // The key points into immutable input that predates every worker;
-                // country words are already initialized atomics, not published data.
-                let mut old = slot.key.load(Ordering::Relaxed);
+                let index = (hash as usize).wrapping_add(probe) & (self.keys.len() - 1);
+                let cell = &self.keys[index];
+                let mut old = cell.load(Ordering::Acquire);
                 if old == 0 {
-                    old = match slot.key.compare_exchange(
-                        0,
-                        key,
-                        Ordering::Relaxed,
-                        Ordering::Relaxed,
-                    ) {
-                        Ok(_) => key,
-                        Err(old) => old,
+                    old = match cell.compare_exchange(0, 1, Ordering::Acquire, Ordering::Acquire) {
+                        Ok(_) => {
+                            // This writer exclusively owns the unpublished head.
+                            unsafe {
+                                std::ptr::copy_nonoverlapping(
+                                    name.as_ptr(),
+                                    self.heads[index].0.get().cast::<u8>(),
+                                    name.len().min(24),
+                                );
+                            }
+                            cell.store(key, Ordering::Release);
+                            key
+                        }
+                        Err(winner) => winner,
                     };
                 }
-                let offset = (old >> 32) as usize - 1;
-                let length = (old as u32) as usize;
-                if input[offset..offset + length] == *name {
-                    return slot.countries[country / 64].fetch_or(bit, Ordering::Relaxed) & bit
-                        == 0;
+                while old == 1 {
+                    std::hint::spin_loop();
+                    old = cell.load(Ordering::Acquire);
+                }
+                if old as u32 == key as u32 {
+                    let head = unsafe { &*self.heads[index].0.get() };
+                    let offset = (old >> 32) as usize - 1;
+                    if head[..name.len().min(24)] == name[..name.len().min(24)]
+                        && (name.len() <= 24
+                            || input[offset + 24..offset + name.len()] == name[24..])
+                    {
+                        return Some(index);
+                    }
                 }
             }
         }
-        // A bounded probe count keeps pathological collisions from stalling;
-        // the fallback still stores and compares complete name bytes.
+        // Long names, offsets outside u32 and crowded tables remain exact.
+        None
+    }
+    fn overflow_first(&self, name: &'a [u8], country: usize) -> bool {
+        let bit = 1 << (country % 64);
         let mut overflow = self.overflow.lock().unwrap();
         let words = overflow.entry(name).or_insert([0; 4]);
         let fresh = words[country / 64] & bit == 0;
@@ -194,7 +318,45 @@ impl<'a> Names<'a> {
         fresh
     }
 }
-
+#[derive(Clone, Copy)]
+struct Pending<'a> {
+    name: &'a [u8],
+    country: usize,
+    slot: u64,
+}
+struct Pipeline<'a> {
+    pending: [Option<Pending<'a>>; 16],
+    marks: [Option<(usize, usize)>; 16],
+    cursor: usize,
+}
+impl<'a> Pipeline<'a> {
+    fn advance(
+        &mut self,
+        next: Option<Pending<'a>>,
+        names: &Names<'a>,
+        input: &[u8],
+        groups: &mut [Group],
+    ) {
+        let k = self.cursor % 16;
+        if let Some((slot, country)) = self.marks[k].take() {
+            let bit = 1 << (country % 64);
+            let fresh =
+                names.countries[slot][country / 64].fetch_or(bit, Ordering::Relaxed) & bit == 0;
+            groups[country].names_distinct += u64::from(fresh);
+        }
+        if let Some(old) = self.pending[k].take() {
+            if let Some(slot) = names.intern(input, old.name, old.slot) {
+                prefetch(&names.countries[slot][old.country / 64]);
+                self.marks[k] = Some((slot, old.country));
+            } else {
+                groups[old.country].names_distinct +=
+                    u64::from(names.overflow_first(old.name, old.country));
+            }
+        }
+        self.pending[k] = next;
+        self.cursor += 1;
+    }
+}
 fn parse<'a>(
     input: &'a [u8],
     names: &Names<'a>,
@@ -204,30 +366,33 @@ fn parse<'a>(
     countries: usize,
 ) -> Vec<Group> {
     let mut groups = vec![Group::default(); countries];
+    let mut pipeline = Pipeline {
+        pending: [None; 16],
+        marks: [None; 16],
+        cursor: 0,
+    };
+    let mut structure = Structure::new(input, start);
     let mut pos = start;
     while pos < end {
+        let (f1, q1) = structure.next();
+        let (f2, q2) = structure.next();
+        let (f3, q3) = structure.next();
+        let (f4, _) = structure.next();
+        let (eol, _) = structure.next();
         if input[pos] == 0xef {
             pos += 3;
         }
-        let id = number(input, &mut pos, b',');
-        let (name, name_bytes) = field(input, &mut pos);
-        let (_, note_bytes) = field(input, &mut pos);
-        let region = number(input, &mut pos, b',') as usize;
-        let negative = input[pos] == b'-';
-        pos += usize::from(negative);
-        let whole = number(input, &mut pos, b'.') as i64;
-        let cents =
-            whole * 100 + i64::from(input[pos] - b'0') * 10 + i64::from(input[pos + 1] - b'0');
-        let cents = if negative { -cents } else { cents };
-        pos += 2;
-        if pos < input.len() && input[pos] == b'\r' {
-            pos += 1;
-        }
-        if pos < input.len() && input[pos] == b'\n' {
-            pos += 1;
-        }
+        let id = digits(&input[pos..f1]);
+        let quoted = usize::from(q2 != q1);
+        let name = &input[f1 + 1 + quoted..f2 - quoted];
+        let region = digits(&input[f3 + 1..f4]) as usize;
         let country = usize::from(*lookup.get(region).unwrap_or(&0));
-        let fresh = names.first(input, name, country);
+        let amount = f4 + 1;
+        let negative = usize::from(input[amount] == b'-');
+        let amount_end = eol - usize::from(input[eol - 1] == b'\r');
+        let cents = (digits(&input[amount + negative..amount_end - 3]) * 100
+            + digits(&input[amount_end - 2..amount_end])) as i64;
+        let cents = if negative != 0 { -cents } else { cents };
         let group = &mut groups[country];
         if group.count == 0 {
             group.min = cents;
@@ -238,9 +403,19 @@ fn parse<'a>(
         group.sum += cents;
         group.min = group.min.min(cents);
         group.max = group.max.max(cents);
-        group.names_distinct += u64::from(fresh);
-        group.name_bytes += name_bytes;
-        group.note_bytes += note_bytes;
+        group.name_bytes += (f2 - f1 - 1) as u64 - (q2 - q1) / 2 - quoted as u64;
+        group.note_bytes += (f3 - f2 - 1) as u64 - (q3 - q2) / 2 - u64::from(q3 != q2);
+        let next = Pending {
+            name,
+            country,
+            slot: names.probe(name),
+        };
+        pipeline.advance(Some(next), names, input, &mut groups);
+        pos = (eol + 1).min(input.len());
+    }
+    // Resolve the last sixteen names and retire their membership updates.
+    for _ in 0..32 {
+        pipeline.advance(None, names, input, &mut groups);
     }
     groups
 }
@@ -328,9 +503,16 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
     bounds.push(len);
     // Cap the common-name table; full byte equality and the overflow map keep
     // distinct counting exact even when the table is crowded.
+    let capacity = (len / 64).next_power_of_two().clamp(1024, 1 << 17);
     let names = Names {
-        slots: std::iter::repeat_with(Entry::default)
-            .take((len / 64).next_power_of_two().clamp(1024, 1 << 17))
+        keys: std::iter::repeat_with(AtomicU64::default)
+            .take(capacity)
+            .collect(),
+        heads: std::iter::repeat_with(Head::default)
+            .take(capacity)
+            .collect(),
+        countries: std::iter::repeat_with(|| std::array::from_fn(|_| AtomicU64::default()))
+            .take(capacity)
             .collect(),
         overflow: Mutex::new(HashMap::default()),
     };

@@ -2,7 +2,7 @@
 
 Baseline: `00f82d78`, whose production code matches `420d664`. Select only D's
 four-byte tagged adjacency for the next Intel trial. A remains unchanged.
-Exact alternatives are patches outside runtime folders; no dependencies, PGO,
+Exact alternatives are Rust sources outside runtime folders; no dependencies, PGO,
 worker counts, compiler flags or seed-specific answers are added.
 
 The intended scoring tracks remain A/C/D, with B as insurance. This local D
@@ -55,8 +55,8 @@ fallback. `graph-stats.json` records the full counts and payload calculations.
   raw edges, then holds 54.63 MB for both graphs. Query scratch/allocator memory
   raises peak to 94.81 MB. This explains why lower construction payload alone
   does not achieve the predicted final peak.
-  `d-phase-{base,escape11,reverse}.patch` preserve the instrumentation separately
-  from solver candidates; apply each to its corresponding prepared context.
+  `variants/d-phase-{base,escape11,reverse}/main.rs` preserve instrumented Rust
+  sources separately from solver candidates. Copy a source into its context.
 - `a-native-samples.json`: earlier macOS/Rust 1.98.1 experiment. Native footprint
   and RSS are not cgroup memory; this series is not selection evidence.
   `a-correctness.json` records A's Docker seed checks.
@@ -65,7 +65,7 @@ fallback. `graph-stats.json` records the full counts and payload calculations.
 
 Use the unchanged [official generators](https://github.com/hackathon-raptors/speed-demon-2026/tree/main/generators)
 to generate full seeds 1 and 42 in `data/{a,d}/full-seed{1,42}`. Data is untracked.
-Python, Cargo, Docker, the standard `patch` utility and the baseline revision
+Python, Cargo, Docker and the baseline revision
 are required.
 
 ```sh
@@ -76,7 +76,7 @@ python3 experiments/2026-10-30-compact-graphs/run.py bench --track all --seed 1 
 python3 experiments/2026-10-30-compact-graphs/run.py bench --track all --seed 42 --pin-inputs
 ```
 
-Preparation reconstructs sources from git and exact patches without switching
+Preparation reconstructs sources from git and saved Rust files without switching
 the worktree. Tests load the unchanged Python oracle before selecting each
 experimental binary. Builds are offline; the timer/warmer use the pinned Rust
 image. Every benchmark checks the output filename and hash, saving all rows in
