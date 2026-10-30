@@ -121,7 +121,7 @@ in `run-1e5f8f64ce0c`: all gates passed, T=0.048427 s, M=20,844,544 bytes,
 S=272, D=1, points=75.758840. The memory improvement transferred to Intel;
 the local runtime improvement did not.
 
-## Step 4: build-time PGO (2026-10-30; board measurement pending)
+## Step 4: build-time PGO (2026-10-30; measured and reverted)
 
 The offline build generates sample-scale seeds 7, 19 and 103 with a byte-identical
 copy of the official generator. The allowlisted Rust image supplies matching
@@ -142,3 +142,11 @@ Offline ARM64 and AMD64 builds succeed without missing-profile warnings; the
 AMD64 sandbox run also matches the public full-seed-1 hash. Build scripts and
 Dockerfiles count toward source size; unchanged official generators are exempt.
 Raw local results are in `.out/pgo-experiment/bench.json` at the repo root.
+
+Board run `run-7aa15ae36e57` at commit
+`3b74c524ad473105b5bfa934855984fe98336eea` passed every gate:
+T=0.050670 s, M=22,491,136 bytes, S=296, D=1, points=74.661645.
+PGO lost 1.097195 points relative to hour ownership without PGO: runtime,
+memory and source size all increased. Restore the previous Docker build.
+The measured commit preserves the complete reproducible PGO experiment,
+including the unchanged generators and training scripts.

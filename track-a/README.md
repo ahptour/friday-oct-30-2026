@@ -88,10 +88,9 @@ storage with their extra source size and memory, including heavily disordered
 inputs where the range index grows. Validate each candidate on several
 generator seeds and retain only measured improvements.
 
-## Profile-guided build
+## Profile-guided experiment
 
-The Docker build trains on generated sample seeds 7, 19 and 103, merges profiles
-with the pinned compiler’s LLVM tools, then rebuilds the final executable.
-Training data and instrumented binaries stay in build stages. The official
-generator is included byte-identically; there are no runtime dependencies.
-PGO remains an experiment pending its first Intel board measurement.
+Build-time PGO trained on generated sample seeds 7, 19 and 103 passed correctness
+on ARM64 and AMD64. Intel board scores fell after memory and source costs, so
+the ordinary native release build is retained. The reproducible experiment is
+preserved at commit `3b74c524ad473105b5bfa934855984fe98336eea`; see [PERF.md](PERF.md).

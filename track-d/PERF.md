@@ -7,7 +7,7 @@
 | 2 | Twelve query workers | run-43460285dd9e | 0.354099 | 171.261952 | 59.008513 |
 | 3 | Compact queue entries with full-width fallback | run-b8e527b07f2c | 0.326074 | 171.425792 | 59.490467 |
 
-Step 4 has now been measured on the board; the PGO experiment below is pending.
+Steps 4 and 5 have board measurements. Step 5 was reverted after losing points.
 
 ## Rust implementation, 2026-10-30
 
@@ -105,7 +105,7 @@ in `run-d9856975d2f3`: all gates passed, T=0.333852 s, M=136,790,016 bytes,
 S=336, D=1, points=59.899443. The memory improvement transferred to Intel;
 the local runtime improvement did not.
 
-## Step 5: build-time PGO (2026-10-30; board measurement pending)
+## Step 5: build-time PGO (2026-10-30; measured and reverted)
 
 The offline build generates sample-scale seeds 7, 19 and 103 with a byte-identical
 copy of the official generator. The allowlisted Rust image supplies matching
@@ -126,3 +126,11 @@ Offline ARM64 and AMD64 builds succeed without missing-profile warnings; the
 AMD64 sandbox run also matches the public full-seed-1 hash. Build scripts and
 Dockerfiles count toward source size; unchanged official generators are exempt.
 Raw local results are in `.out/pgo-experiment/bench.json` at the repo root.
+
+Board run `run-073e327db1c6` at commit
+`3b74c524ad473105b5bfa934855984fe98336eea` passed every gate:
+T=0.330415 s, M=137,994,240 bytes, S=360, D=1, points=59.749009.
+Runtime improved by about 1%, but memory and source costs outweighed it:
+PGO lost 0.150434 points. Restore the previous Docker build.
+The measured commit preserves the complete reproducible PGO experiment,
+including the unchanged generators and training scripts.
