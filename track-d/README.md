@@ -1,15 +1,59 @@
 # Track D: Traverse
 
-The task, the input files and the exact output format are in the [spec](https://github.com/hackathon-raptors/speed-demon-2026/blob/main/specs/d-traverse.md).
+The [frozen specification](https://github.com/hackathon-raptors/speed-demon-2026/blob/main/specs/d-traverse.md)
+defines directed shortest-path queries with nonnegative uint32 edge weights.
 
 ## Approach
 
-How your solution works, in plain prose.
+Map the graph read-only and split its edge lines among up to twelve parsing
+workers. Build compact forward and reverse CSR adjacency arrays concurrently.
+Both preserve parallel edges, duplicates, zero weights and self-loops. No node
+ordering, geometry, or input seed is assumed.
+
+Up to six query workers share the graph and take queries from an atomic work
+counter. Each query uses bidirectional Dijkstra with uint64 distances and binary
+heaps. Expand the smaller frontier, then stop when the sum of the two minimum
+queue distances cannot improve the best complete path found. An empty forward
+adjacency at the source or reverse adjacency at the target immediately proves
+unreachability (except a same-node query, which always answers zero).
+
+Reusable sparse hash maps hold tentative distances, so each query worker pays
+for the nodes it visits instead of allocating two full graph-sized arrays.
+The hash is multiplicative on node IDs; full integer equality handles collisions.
+Results are stored by query index and written in input order. The graph mapping
+and temporary edge lists are released after the CSR arrays are built.
+
+The only unsafe operations are Unix memory mapping and creating a read-only
+slice from the successful mapping. Scoped parsing workers finish before the
+mapping is released. The algorithm and graph accesses use checked indexing.
 
 ## Dependencies
 
-None.
+None. The Rust standard library and the platform's mmap/munmap interface suffice.
+The Dockerfile uses digest-pinned allowlisted images, builds offline, and enables
+`target-cpu=native`, which routes the board build onto its scoring CPU.
+
+## Verification
+
+From the repository root:
+
+```sh
+cargo build --manifest-path track-d/Cargo.toml --release --offline --locked
+python3 -m unittest discover -s tests -p test_track_d.py -v
+cargo clippy --manifest-path track-d/Cargo.toml --offline --all-targets -- -D warnings
+python3 check.py d --data data/d/full-seed1 --expected a23dbdf0a3e49cc8901310a9ee1dc6a9a569a85297b6da75c2a7002cb2ed277e
+```
+
+The executable defaults to `/data` and `/out`, with `--data` and `--out` overrides
+for native development. The unchanged Python reference remains the independent
+oracle. Differential tests cover the worked example, arbitrary small graphs,
+all-pairs queries, repeated queries, asymmetric reachability, disconnected
+components, zero cycles, duplicate and parallel edges, uint32 maximum weights,
+paths above uint32, isolated nodes, and empty query files.
 
 ## With another 24 hours
 
-What you would do next.
+Measure query-worker counts and CSR construction on the board. Consider graph
+relabeling to improve cache locality only if its preprocessing cost is repaid.
+The existing integer-radix-heap experiment did not improve local runtime enough
+to justify its extra code. Keep profiling before adding another data structure.
