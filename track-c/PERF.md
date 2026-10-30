@@ -287,3 +287,32 @@ solver execution, tests, benchmarks or Docker runs were performed. Official
 compilation, correctness and performance remain pending. Complete pre-change
 and candidate files and the raw baseline board response are in
 [`experiments/2026-10-30-batched-plan`](../experiments/2026-10-30-batched-plan/).
+
+
+### Completed combined Intel result and selection
+
+`run-571db117cc7f` at `2ab1dd9` passed every check, build, correctness,
+timeout and sandbox gate; static axes are measured. Official response generated
+2026-10-30 23:42:24 UTC:
+
+| T (ms) | M (bytes) | S | D | Machine points |
+|---:|---:|---:|---:|---:|
+| 67.667 | 12,152,832 | 562 | 1 | 67.665504 |
+
+Score change: **-1.991052** against the immediate
+`d34c3a4` repeat and **-2.046006** against the preceding
+historical best.
+
+Reject six workers plus pipeline depth 32. The batch is 24.27% slower
+than the country-major-only repeat despite an 8.26% lower measured peak. The
+combined experiment does not isolate the worker and depth effects. Restore
+production source from `8dd4f2f`: selected short decimal conversion, twelve
+workers, sixteen-entry stages and the earlier per-name country membership.
+The country-major-only trial had not established a full-score benefit either.
+
+Complete candidate sources remain archived with
+[intel-2ab1dd9.json](../experiments/2026-10-30-batched-plan/intel-2ab1dd9.json).
+The selected combination keeps A and restores B/C/D as described. No local
+builds, solver executions, tests, benchmarks or Docker runs were performed.
+Restored-combination official results remain pending; public-data gate success
+is not evidence of final holdout correctness.

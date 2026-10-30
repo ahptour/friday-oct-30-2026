@@ -279,3 +279,29 @@ solver execution, tests, benchmarks or Docker runs were performed. Official
 compilation, correctness and performance remain pending. Complete pre-change
 and candidate files and the raw baseline board response are in
 [`experiments/2026-10-30-batched-plan`](../experiments/2026-10-30-batched-plan/).
+
+
+### Completed combined Intel result and selection
+
+`run-433a18fd0c5d` at `2ab1dd9` passed every check, build, correctness,
+timeout and sandbox gate; static axes are measured. Official response generated
+2026-10-30 23:42:24 UTC:
+
+| T (ms) | M (bytes) | S | D | Machine points |
+|---:|---:|---:|---:|---:|
+| 41.140 | 19,095,552 | 329 | 1 | 77.290321 |
+
+Score change: **+1.075163** against the immediate
+`d34c3a4` repeat and **+0.092740** against the preceding
+historical best.
+
+Retain direct integer appends and the capped initial reservation. This is
+a new historical best, but the gain is only 0.092740 points; one run does not
+establish a stable improvement. Keep the candidate pending repeat evidence.
+
+Complete candidate sources remain archived with
+[intel-2ab1dd9.json](../experiments/2026-10-30-batched-plan/intel-2ab1dd9.json).
+The selected combination keeps A and restores B/C/D as described. No local
+builds, solver executions, tests, benchmarks or Docker runs were performed.
+Restored-combination official results remain pending; public-data gate success
+is not evidence of final holdout correctness.

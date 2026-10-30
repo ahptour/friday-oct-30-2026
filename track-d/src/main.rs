@@ -283,14 +283,14 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
     let mut start = 0;
     let n = number(input, &mut start) as usize;
     let _m = number(input, &mut start);
-    let parse_workers = thread::available_parallelism()
+    let workers = thread::available_parallelism()
         .map_or(1, usize::from)
         .min(12);
     let parts = thread::scope(|scope| {
         let mut jobs = Vec::new();
         let begin = start;
-        for worker in 0..parse_workers {
-            let mut end = begin + (size - begin) * (worker + 1) / parse_workers;
+        for worker in 0..workers {
+            let mut end = begin + (size - begin) * (worker + 1) / workers;
             while end < size && input[end - 1] != b'\n' {
                 end += 1;
             }
@@ -317,9 +317,8 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
     }
     let answers: Vec<_> = queries.iter().map(|_| AtomicI64::new(-1)).collect();
     let next = AtomicUsize::new(0);
-    let query_workers = parse_workers.min(6).min(queries.len());
     thread::scope(|scope| {
-        for _ in 0..query_workers {
+        for _ in 0..workers.min(queries.len()) {
             scope.spawn(|| {
                 let mut searches = [Search::new(), Search::new()];
                 loop {

@@ -263,8 +263,7 @@ unsafe impl Sync for Head {}
 struct Names<'a> {
     keys: Vec<AtomicU64>,
     heads: Vec<Head>,
-    countries: Vec<AtomicU64>,
-    words_per_country: usize,
+    countries: Vec<[AtomicU64; 4]>,
     overflow: Mutex<HashMap<&'a [u8], [u64; 4], BuildHasherDefault<FastHasher>>>,
 }
 impl<'a> Names<'a> {
@@ -337,10 +336,9 @@ struct Pending<'a> {
     country: usize,
     slot: u64,
 }
-const PIPELINE_DEPTH: usize = 32;
 struct Pipeline<'a> {
-    pending: [Option<Pending<'a>>; PIPELINE_DEPTH],
-    marks: [Option<(usize, u64)>; PIPELINE_DEPTH],
+    pending: [Option<Pending<'a>>; 16],
+    marks: [Option<(usize, usize)>; 16],
     cursor: usize,
 }
 impl<'a> Pipeline<'a> {
@@ -351,16 +349,17 @@ impl<'a> Pipeline<'a> {
         input: &[u8],
         groups: &mut [Group],
     ) {
-        let k = self.cursor % PIPELINE_DEPTH;
-        if let Some((word, bit)) = self.marks[k].take() {
-            names.countries[word].fetch_or(bit, Ordering::Relaxed);
+        let k = self.cursor % 16;
+        if let Some((slot, country)) = self.marks[k].take() {
+            let bit = 1 << (country % 64);
+            let fresh =
+                names.countries[slot][country / 64].fetch_or(bit, Ordering::Relaxed) & bit == 0;
+            groups[country].names_distinct += u64::from(fresh);
         }
         if let Some(old) = self.pending[k].take() {
             if let Some(slot) = names.intern(input, old.name, old.slot) {
-                let word = old.country * names.words_per_country + slot / 64;
-                let bit = 1u64 << (slot % 64);
-                prefetch(&names.countries[word]);
-                self.marks[k] = Some((word, bit));
+                prefetch(&names.countries[slot][old.country / 64]);
+                self.marks[k] = Some((slot, old.country));
             } else {
                 groups[old.country].names_distinct +=
                     u64::from(names.overflow_first(old.name, old.country));
@@ -380,8 +379,8 @@ fn parse<'a>(
 ) -> Vec<Group> {
     let mut groups = vec![Group::default(); countries];
     let mut pipeline = Pipeline {
-        pending: [None; PIPELINE_DEPTH],
-        marks: [None; PIPELINE_DEPTH],
+        pending: [None; 16],
+        marks: [None; 16],
         cursor: 0,
     };
     let mut structure = Structure::new(input, start);
@@ -427,8 +426,8 @@ fn parse<'a>(
         pipeline.advance(Some(next), names, input, &mut groups);
         pos = (eol + 1).min(input.len());
     }
-    // Drain both name resolution and membership updates at every boundary.
-    for _ in 0..2 * PIPELINE_DEPTH {
+    // Resolve the last sixteen names and retire their membership updates.
+    for _ in 0..32 {
         pipeline.advance(None, names, input, &mut groups);
     }
     groups
@@ -444,6 +443,7 @@ fn money(cents: i64) -> String {
 }
 
 fn finish(keys: &[Vec<u8>], parts: &[Vec<Group>], names: Names<'_>) -> Vec<(Vec<u8>, String)> {
+    drop(names);
     let mut output = Vec::new();
     for country in 0..keys.len() {
         let mut total = Group::default();
@@ -466,13 +466,6 @@ fn finish(keys: &[Vec<u8>], parts: &[Vec<Group>], names: Names<'_>) -> Vec<(Vec<
             total.names_distinct += group.names_distinct;
         }
         if total.count > 0 {
-            // Workers have joined and drained both pipeline stages. Their
-            // distinct counts cover only overflow names; main slots never move.
-            let start = country * names.words_per_country;
-            total.names_distinct += names.countries[start..start + names.words_per_country]
-                .iter()
-                .map(|word| u64::from(word.load(Ordering::Relaxed).count_ones()))
-                .sum::<u64>();
             output.push((
                 keys[country].clone(),
                 format!(
@@ -505,7 +498,7 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
     let header_end = find(input, 0, b'\n') + 1;
     let workers = thread::available_parallelism()
         .map_or(1, usize::from)
-        .min(6)
+        .min(12)
         .min(len.div_ceil(64 * 1024));
     let mut bounds = vec![header_end];
     for worker in 1..workers {
@@ -524,7 +517,6 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
     // Cap the common-name table; full byte equality and the overflow map keep
     // distinct counting exact even when the table is crowded.
     let capacity = (len / 64).next_power_of_two().clamp(1024, 1 << 17);
-    let words_per_country = capacity.div_ceil(64);
     let names = Names {
         keys: std::iter::repeat_with(AtomicU64::default)
             .take(capacity)
@@ -532,10 +524,9 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
         heads: std::iter::repeat_with(Head::default)
             .take(capacity)
             .collect(),
-        countries: std::iter::repeat_with(AtomicU64::default)
-            .take(keys.len() * words_per_country)
+        countries: std::iter::repeat_with(|| std::array::from_fn(|_| AtomicU64::default()))
+            .take(capacity)
             .collect(),
-        words_per_country,
         overflow: Mutex::new(HashMap::default()),
     };
     let parts = thread::scope(|scope| {

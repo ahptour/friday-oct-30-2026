@@ -353,3 +353,31 @@ solver execution, tests, benchmarks or Docker runs were performed. Official
 compilation, correctness and performance remain pending. Complete pre-change
 and candidate files and the raw baseline board response are in
 [`experiments/2026-10-30-batched-plan`](../experiments/2026-10-30-batched-plan/).
+
+
+### Completed combined Intel result and selection
+
+`run-48c0c51098d1` at `2ab1dd9` passed every check, build, correctness,
+timeout and sandbox gate; static axes are measured. Official response generated
+2026-10-30 23:42:24 UTC:
+
+| T (ms) | M (bytes) | S | D | Machine points |
+|---:|---:|---:|---:|---:|
+| 357.599 | 97,329,152 | 362 | 1 | 60.388730 |
+
+Score change: **-1.283070** against the immediate
+`d34c3a4` repeat and **-1.580727** against the preceding
+historical best.
+
+Reject the six-query-worker candidate: runtime rose 12.21% relative to
+the immediate repeat while measured peak rose 0.53%. Restore production source
+from `d34c3a4`, retaining twelve parsing/query workers, concurrent CSR builds and
+packed adjacency. Reducing query scratch did not lower end-to-end measured peak
+in this run; no specific phase is claimed as a profiled explanation.
+
+Complete candidate sources remain archived with
+[intel-2ab1dd9.json](../experiments/2026-10-30-batched-plan/intel-2ab1dd9.json).
+The selected combination keeps A and restores B/C/D as described. No local
+builds, solver executions, tests, benchmarks or Docker runs were performed.
+Restored-combination official results remain pending; public-data gate success
+is not evidence of final holdout correctness.
