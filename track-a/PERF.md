@@ -86,7 +86,7 @@ sampled first/middle/last words. Partition tests include inputs around the
 64 KiB worker threshold and large globally shuffled groups. They were added
 after the measured commit without changing its production implementation.
 
-## Step 3: hour ownership (2026-10-30; board measurement pending)
+## Step 3: hour ownership (2026-10-30)
 
 Replace overlapping worker-local groups and their merge with a parallel range
 index followed by exclusive ownership of each hour. The index coalesces only
@@ -115,3 +115,30 @@ The prototype passed all nine existing differential tests, full seeds 1 and
 42, and offline Docker sandbox checks. Integration adds a differential
 regression for separated runs of the same hour, uneven hour sizes and missing
 hours. The Python correctness oracle and container build settings are unchanged.
+
+The board measured step 3 at commit `8528bde3cb3715b078d61524bc02d1ceb0cbe166`
+in `run-1e5f8f64ce0c`: all gates passed, T=0.048427 s, M=20,844,544 bytes,
+S=272, D=1, points=75.758840. The memory improvement transferred to Intel;
+the local runtime improvement did not.
+
+## Step 4: build-time PGO (2026-10-30; board measurement pending)
+
+The offline build generates sample-scale seeds 7, 19 and 103 with a byte-identical
+copy of the official generator. The allowlisted Rust image supplies matching
+LLVM tools: compile with instrumentation, run all three seeds, merge profiles,
+then rebuild with profile-use and missing-profile warnings. Both compilations
+retain native CPU targeting and the release settings. Only the final executable
+enters the runtime image; seed 1 is excluded from training.
+
+Seven alternating trials per variant on local ARM64 Linux, pinned to CPUs 0–11,
+excluded the first trial from warm summaries. Median process time was 29.240 ms
+before and 29.530 ms after PGO; worst warm cgroup peak was 23,572,480 versus
+25,944,064 bytes. This shows no local benefit.
+All outputs matched the public full-seed-1 hash. These measurements do not
+establish Intel performance.
+
+All existing differential suites pass against the actual PGO runtime container.
+Offline ARM64 and AMD64 builds succeed without missing-profile warnings; the
+AMD64 sandbox run also matches the public full-seed-1 hash. Build scripts and
+Dockerfiles count toward source size; unchanged official generators are exempt.
+Raw local results are in `.out/pgo-experiment/bench.json` at the repo root.

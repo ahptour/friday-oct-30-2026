@@ -77,10 +77,8 @@ deliberate sampled-hash collisions. A regression test covers long runs that
 revisit hours, uneven hour sizes, and empty hours between output groups. Tests
 live outside the track's build context.
 
-Last measured live-board score (before hour ownership): **73.210288**, runtime
-**0.048674 s**, peak memory **41.30 MB**, with all gates passed. The hour-owned
-version awaits a board measurement. See [PERF.md](PERF.md) for local prototype
-measurements and the previous run ID.
+Last measured live-board score: **75.758840**, runtime **0.048427 s**,
+peak memory **20.84 MB**, with all gates passed. See [PERF.md](PERF.md).
 
 ## With another 24 hours
 
@@ -89,3 +87,11 @@ map lookups and output separately. Compare endpoint interning and denser range
 storage with their extra source size and memory, including heavily disordered
 inputs where the range index grows. Validate each candidate on several
 generator seeds and retain only measured improvements.
+
+## Profile-guided build
+
+The Docker build trains on generated sample seeds 7, 19 and 103, merges profiles
+with the pinned compiler’s LLVM tools, then rebuilds the final executable.
+Training data and instrumented binaries stay in build stages. The official
+generator is included byte-identically; there are no runtime dependencies.
+PGO remains an experiment pending its first Intel board measurement.

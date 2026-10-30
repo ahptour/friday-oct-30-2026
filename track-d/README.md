@@ -64,3 +64,11 @@ Measure query-worker counts and CSR construction on the board. Consider graph
 relabeling to improve cache locality only if its preprocessing cost is repaid.
 The existing integer-radix-heap experiment did not improve local runtime enough
 to justify its extra code. Keep profiling before adding another data structure.
+
+## Profile-guided build
+
+The Docker build trains on generated sample seeds 7, 19 and 103, merges profiles
+with the pinned compiler’s LLVM tools, then rebuilds the final executable.
+Training data and instrumented binaries stay in build stages. The official
+generator is included byte-identically; there are no runtime dependencies.
+PGO remains an experiment pending its first Intel board measurement.

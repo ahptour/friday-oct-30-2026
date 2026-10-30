@@ -7,7 +7,7 @@
 | 2 | Twelve query workers | run-43460285dd9e | 0.354099 | 171.261952 | 59.008513 |
 | 3 | Compact queue entries with full-width fallback | run-b8e527b07f2c | 0.326074 | 171.425792 | 59.490467 |
 
-Step 4 below has local measurements only; the latest board result remains step 3.
+Step 4 has now been measured on the board; the PGO experiment below is pending.
 
 ## Rust implementation, 2026-10-30
 
@@ -99,3 +99,30 @@ node IDs above 21 bits, mixed compact and full-width edges, adjacency gaps and
 the last node. The existing uint32 maximum, long-distance, empty-graph and
 randomized all-pairs cases continue to pass, as do formatting and Clippy with
 warnings denied.
+
+The board measured step 4 at commit `8528bde3cb3715b078d61524bc02d1ceb0cbe166`
+in `run-d9856975d2f3`: all gates passed, T=0.333852 s, M=136,790,016 bytes,
+S=336, D=1, points=59.899443. The memory improvement transferred to Intel;
+the local runtime improvement did not.
+
+## Step 5: build-time PGO (2026-10-30; board measurement pending)
+
+The offline build generates sample-scale seeds 7, 19 and 103 with a byte-identical
+copy of the official generator. The allowlisted Rust image supplies matching
+LLVM tools: compile with instrumentation, run all three seeds, merge profiles,
+then rebuild with profile-use and missing-profile warnings. Both compilations
+retain native CPU targeting and the release settings. Only the final executable
+enters the runtime image; seed 1 is excluded from training.
+
+Seven alternating trials per variant on local ARM64 Linux, pinned to CPUs 0–11,
+excluded the first trial from warm summaries. Median process time was 162.713 ms
+before and 158.691 ms after PGO, about 2.5% less. Worst warm cgroup peak was
+137,560,064 versus 136,097,792 bytes. Added source cost may absorb this gain.
+All outputs matched the public full-seed-1 hash. These measurements do not
+establish Intel performance.
+
+All existing differential suites pass against the actual PGO runtime container.
+Offline ARM64 and AMD64 builds succeed without missing-profile warnings; the
+AMD64 sandbox run also matches the public full-seed-1 hash. Build scripts and
+Dockerfiles count toward source size; unchanged official generators are exempt.
+Raw local results are in `.out/pgo-experiment/bench.json` at the repo root.
