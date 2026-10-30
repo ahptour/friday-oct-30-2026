@@ -101,6 +101,21 @@ class TrackCTest(unittest.TestCase):
                                rng.choice([3, 7, 12, 20, 9999999]), '-0.05'))
         self.check_bytes(b''.join(rows))
 
+    def test_parallel_country_words_and_shared_names(self):
+        codes = [chr(65 + i // 676) + chr(65 + i // 26 % 26) + chr(65 + i % 26)
+                 for i in range(240)]
+        regions = b'region_id,country\n' + ''.join(
+            f'{i + 1},{code}\n' for i, code in enumerate(codes)).encode()
+        # Enough input for all workers: each country word and repeated pair is
+        # updated from several chunks, including the unmatched country's bit.
+        rows = [HEADER]
+        for repeat in range(180):
+            for country in range(241):
+                rows.append(record(repeat * 241 + country + 1,
+                                   ['Shared', 'Shared ', ''][repeat % 3], 'parallel',
+                                   country + 1 if country < 240 else 9_999_999))
+        self.check_bytes(b''.join(rows), regions)
+
     def test_all_country_ids_and_unknown_regions(self):
         # Full/sample permit 240 countries plus _UNMATCHED, fitting one byte.
         # Repeated names exercise every word of the four-word country bitset.

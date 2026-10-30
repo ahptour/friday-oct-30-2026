@@ -57,9 +57,16 @@ class TrackDTest(unittest.TestCase):
         edges = [(0, 1, limit - 1), (1, limit - 1, limit),
                  (limit - 1, limit, 0), (limit, limit + 1, 4294967295),
                  (limit + 1, 1, 1), (0, 1, limit), (1, 0, 0),
-                 (limit + 1, limit + 1, 0)]
+                 (limit + 1, limit + 1, 0),
+                 (0, limit - 1, 1023), (limit - 1, 0, 1024)]
         self.check_graph(limit + 2, edges,
                          [(s, t) for s in nodes for t in nodes])
+
+    def test_adjacency_weight_tag_boundary(self):
+        edges = [(0, 1, 1023), (1, 2, 1024), (0, 2, 4095),
+                 (2, 3, 0), (3, 4, 4294967295), (4, 1, 1),
+                 (0, 1, 1024), (2, 2, 1023)]
+        self.check_graph(6, edges, [(s, t) for s in range(6) for t in range(6)])
 
     def test_adjacency_gaps_and_last_node(self):
         edges = [(7, 2, 5), (2, 5, 0), (7, 2, 3), (5, 7, 8),
