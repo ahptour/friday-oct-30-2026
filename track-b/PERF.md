@@ -432,3 +432,68 @@ No local compilation, execution, tests or Docker were used. Public-data gate
 success does not establish correctness on the final holdout seed. The selected
 combination retains A, restores B/C, and keeps D; its next board run is a repeat
 of these selected implementations, not another algorithm experiment.
+
+
+## Native short-key dictionary selection (2026-10-31; Intel pending)
+
+Profile before changing the execution plan. Two archived diagnostic executions
+per full seed put Boolean block flushes at roughly 20% of each worker's elapsed
+parse time. The remainder includes tokenization, dictionary lookup, phrase work
+and bookkeeping; this does not isolate dictionary time. Keep streaming Boolean
+masks and phrase anchors, and reduce exact dictionary key width instead.
+
+Build two dictionaries directly while reading queries: zero-padded 16-byte keys
+for tokens up to 16 bytes and full zero-padded 32-byte keys for longer tokens.
+Both assign IDs from their combined length. Corpus lookups use the actual token
+length. No prefix accepts a long token, no cached answer is used, and ASCII-only
+normalization, unknown-token phrase positions and complete long-token equality
+are preserved. Direct construction avoids retaining an initial 32-byte table.
+
+An initial convert-after-building variant led by only 0.8% / 2.1% on seeds 1 / 42
+and did not lower measured footprint; reject it. An isolated 8-byte-key variant
+was slower than the direct 16-byte candidate on both seeds despite a smaller
+footprint; keep it archived and prefer the repeated 16-byte candidate.
+
+| Batch | Full seed | Baseline median ms | Direct 16-byte median ms | Baseline max footprint bytes | Candidate max footprint bytes |
+|---|---:|---:|---:|---:|---:|
+| Screen, 10 timings each | 1 | 171.297 | 165.386 | 72,942,192 | 69,517,936 |
+| Screen, 10 timings each | 42 | 169.304 | 165.792 | 72,974,960 | 69,927,536 |
+| Independent repeat, 12 timings each | 1 | 169.935 | 165.673 | 72,385,112 | 70,550,128 |
+| Independent repeat, 12 timings each | 42 | 173.914 | 167.021 | 72,106,608 | 69,534,320 |
+
+These are Apple M4 Max native exec-to-exit measurements, two discarded warmups
+and randomized serial order; the repeat reverses the variant list. Three
+separate `/usr/bin/time -l` runs per variant/seed record both maximum RSS and
+peak footprint. The table reports Mac peak footprint, not Linux cgroup
+memory.peak. The candidate was faster in 19/20 screen pairs and 20/24 repeat
+pairs. Per-pair median time/source point estimates (assuming S566) are +0.225 /
++0.220 for the screen and +0.162 / +0.022 for the repeat, before any memory
+benefit. The repeat's seed-42 timing spread is material; do not infer a stable
+4% Intel gain from the median ratio alone.
+
+Official baseline source count is S541. Canonical local nonblank/noncomment
+Rust grows by 25 lines, estimating S566, with D1 unchanged. At equal measured
+memory, the score break-even is T_new/T_old < (541/566)^0.3 = 0.986539,
+requiring 1.35% less runtime. This local result is sufficient to select the
+candidate for an Intel trial, not to claim official K or final holdout benefit.
+Production now matches the complete archived `b-shortkeys-direct.rs`.
+
+Verification: all eight existing Python-reference differential suites passed
+against the candidate binary, as did two additional boundary suites covering
+8/16/17/32-byte widths, common prefixes, all phrase positions, short-only,
+long-only and mixed parallel inputs. Deliberately routing long lookups to the
+16-byte prefix table made both boundary suites fail. Full-sized output bytes
+matched previously verified reference outputs for seeds 1 and 42 on every
+benchmark execution; these were not fresh full-reference runs. Formatting,
+Clippy with warnings denied and x86_64 Linux Haswell code generation passed.
+After selection, all eight existing suites passed against the production Cargo
+release binary too. No Docker or official submission was run in this session.
+
+Complete sources, mutation output, diagnostics and every sample are in
+[`2026-10-31-native-first`](../experiments/2026-10-31-native-first/), especially
+`b-shortkeys-direct-screen.json` and `b-shortkeys-direct-repeat.json`. The native
+runner now binds measurements to source, executable and input SHA-256 hashes,
+compiler/command metadata and existing reference-output provenance. Current
+source has no official run ID yet. The last official baseline at `1bc5fb6` was
+`run-c0aa86c4d47d`: 446.538 ms, 70,979,584 bytes, S541, D1, 61.632993 points.
+Its complete official feed snapshot is preserved as `intel-1bc5fb6.json`.

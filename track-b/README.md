@@ -5,8 +5,10 @@ The exact contract is in the [Track B spec](https://github.com/hackathon-raptors
 ## Approach
 
 Read the queries first and intern only the requested terms. Tokens are normalized
-into fixed 32-byte keys using ASCII lowercase only. Non-ASCII bytes always
-separate tokens, exactly as the specification requires.
+using ASCII lowercase only. Exact zero-padded keys use 16 bytes for tokens of
+up to 16 bytes and 32 bytes for longer tokens. Both dictionaries are built
+directly while reading the queries, with shared dense term IDs. Non-ASCII bytes
+always separate tokens, exactly as the specification requires.
 
 Sample the first 1,000 documents to choose selective query anchors. Sampling
 only chooses an execution order; every document and query is still evaluated
@@ -73,5 +75,9 @@ improvements only after independent-seed and full-output verification.
 The lexical scanner experiment at `196b0c0` passed every Intel gate but lost
 2.017703 points against this earlier streaming implementation. The complete
 experiment remains archived outside the production folder; see PERF.md.
-This source is restored from `3b74c52`, with the same native build configuration.
-No local compilation or runtime verification was performed for the restoration.
+The execution plan and native build configuration remain those of `3b74c52`.
+The short-key dictionary is now selected after two native comparison batches on
+full seeds 1 and 42, eight existing differential suites, two targeted boundary
+suites, a successful mutation check, Clippy, and Haswell code generation. This
+local selection has no official Intel measurement yet; see PERF.md for scope
+and raw evidence.

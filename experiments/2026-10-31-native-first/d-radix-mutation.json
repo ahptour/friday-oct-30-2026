@@ -1,0 +1,6 @@
+{
+  "mutation": "corrupt returned node ID in peek/pop",
+  "returncode": 101,
+  "stdout": "\nrunning 1 test\ntest queue_tests::monotone_queue_matches_binary_heap_including_ties_widths_and_reuse ... FAILED\n\nfailures:\n\n---- queue_tests::monotone_queue_matches_binary_heap_including_ties_widths_and_reuse stdout ----\n\nthread 'queue_tests::monotone_queue_matches_binary_heap_including_ties_widths_and_reuse' (3874239) panicked at .out/native-first/d-radix-broken.rs:535:17:\nassertion `left == right` failed\n  left: Some(Reverse((0, 794730731)))\n right: Some(Reverse((0, 794730730)))\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n\nfailures:\n    queue_tests::monotone_queue_matches_binary_heap_including_ties_widths_and_reuse\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n",
+  "stderr": ""
+}

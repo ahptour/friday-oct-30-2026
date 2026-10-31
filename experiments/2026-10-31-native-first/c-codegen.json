@@ -1,0 +1,81 @@
+{
+  "compiler": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: aarch64-apple-darwin\nrelease: 1.98.1\nLLVM version: 22.1.8\n",
+  "flags": "--edition=2024 -C opt-level=3 -C lto=thin -C codegen-units=1 -C panic=abort --emit=asm; arm: target-cpu=native; haswell: target=x86_64-unknown-linux-gnu target-cpu=haswell; x86-generic: target=x86_64-unknown-linux-gnu",
+  "observation": "native ARM and Haswell already specialize the baseline classifier; generic x86 retains runtime dispatch",
+  "rows": [
+    {
+      "variant": "c-base",
+      "architecture": "arm",
+      "source_sha256": "a22b284b7fa3a43ef184b97ede58ea085d0feee44972c87270a592ff800a9593",
+      "assembly_sha256": "2c3e9d499a922f522b8087878e254b26d148156e571503ac2b596c6f0456b70a",
+      "lines": 8787,
+      "scalar_masks_symbol": false,
+      "vector_masks_symbol": false,
+      "pclmul_sites": 0,
+      "excerpt": []
+    },
+    {
+      "variant": "c-base",
+      "architecture": "haswell",
+      "source_sha256": "a22b284b7fa3a43ef184b97ede58ea085d0feee44972c87270a592ff800a9593",
+      "assembly_sha256": "ecd79c8771f502eabcc5fb8edce0a75db2db0893d5dcfb898e7533bdc3795109",
+      "lines": 8375,
+      "scalar_masks_symbol": false,
+      "vector_masks_symbol": false,
+      "pclmul_sites": 5,
+      "excerpt": [
+        "\tmovq\t16(%rsp), %r8\n\tmovq\t%r15, %rsi\n\tmovq\t24(%rsp), %r15\n.LBB10_29:\n\txorl\t%eax, %eax\n\tpopcntq\t%r12, %rax\n\tvmovdqu\t(%rsi), %ymm0\n\tvmovdqu\t32(%rsi), %ymm1\n\tvpbroadcastd\t.LCPI10_3(%rip), %ymm3\n\tvpcmpeqb\t%ymm3, %ymm1, %ymm2\n\tvpcmpeqb\t%ymm3, %ymm0, %ymm3\n\tvpmovmskb\t%ymm3, %ecx\n\tvpmovmskb\t%ymm2, %r12d\n\tshlq\t$32, %r12\n\torq\t%rcx, %r12\n\tvmovq\t%r12, %xmm2\n\tvpbroadcastq\t%xmm2, %xmm2\n\tvpcmpeqd\t%xmm3, %xmm3, %xmm3\n\tvpclmulqdq\t$0, %xmm3, %xmm2, %xmm2\n\taddq\t%rax, %r9\n\tvpbroadcastd\t.LCPI10_4(%rip), %ymm4\n\tvpcmpeqb\t%ymm4, %ymm0, %ymm3\n\tvpcmpeqb\t%ymm4, %ymm1, %ymm4\n\tvpbroadcastd\t.LCPI10_5(%rip), %ymm5\n\tvpcmpeqb\t%ymm5, %ymm0, %ymm0\n\tvpor\t%ymm0, %ymm3, %ymm0\n\tvpcmpeqb\t%ymm5, %ymm1, %ymm1\n\tvpor\t%ymm1, %ymm4, %ymm1\n\tvpmovmskb\t%ymm0, %eax\n\tvpmovmskb\t%ymm1, %ecx\n\tshlq\t$32, %rcx\n\torq\t%rax, %rcx\n\tvmovq\t%xmm2, %rax\n\txorq\t%rbp, %rax\n\tmovq\t%rax, %rbp\n\tsarq\t$63, %rbp\n\tandnq\t%rcx, %rax, %rdx"
+      ]
+    },
+    {
+      "variant": "c-base",
+      "architecture": "x86-generic",
+      "source_sha256": "a22b284b7fa3a43ef184b97ede58ea085d0feee44972c87270a592ff800a9593",
+      "assembly_sha256": "76791ef099741c54772e2f016fae00f6dcb54a3e8a25f97664b9d01ec3734146",
+      "lines": 8702,
+      "scalar_masks_symbol": true,
+      "vector_masks_symbol": true,
+      "pclmul_sites": 1,
+      "excerpt": [
+        "\t.section\t.text._RNvCsaMNzblTa4Ve_6c_base12vector_masks,\"ax\",@progbits\n\t.p2align\t4\n\t.type\t_RNvCsaMNzblTa4Ve_6c_base12vector_masks,@function\n_RNvCsaMNzblTa4Ve_6c_base12vector_masks:\n\t.cfi_startproc\n\tmovq\t%rdi, %rax\n\tvmovdqu\t(%rsi), %ymm0\n\tvmovdqu\t32(%rsi), %ymm1\n\tvpbroadcastb\t.LCPI22_3(%rip), %ymm2\n\tvpcmpeqb\t%ymm2, %ymm1, %ymm3\n\tvpcmpeqb\t%ymm2, %ymm0, %ymm2\n\tvpmovmskb\t%ymm2, %ecx\n\tvpmovmskb\t%ymm3, %edx\n\tshlq\t$32, %rdx\n\torq\t%rcx, %rdx\n\tvmovq\t%rdx, %xmm2\n\tvpbroadcastq\t%xmm2, %xmm2\n\tvpcmpeqd\t%xmm3, %xmm3, %xmm3\n\tvpclmulqdq\t$0, %xmm3, %xmm2, %xmm2\n\tvpbroadcastb\t.LCPI22_4(%rip), %ymm3\n\tvpcmpeqb\t%ymm3, %ymm1, %ymm4\n\tvpcmpeqb\t%ymm3, %ymm0, %ymm3\n\tvpbroadcastb\t.LCPI22_5(%rip), %ymm5\n\tvpcmpeqb\t%ymm5, %ymm1, %ymm1\n\tvpor\t%ymm1, %ymm4, %ymm1\n\tvpcmpeqb\t%ymm5, %ymm0, %ymm0\n\tvpor\t%ymm0, %ymm3, %ymm0\n\tvpmovmskb\t%ymm0, %ecx\n\tvpmovmskb\t%ymm1, %esi\n\tshlq\t$32, %rsi\n\torq\t%rcx, %rsi\n\tmovq\t%rdx, (%rdi)\n\tmovq\t%rsi, 8(%rdi)\n\tvmovq\t%xmm2, 16(%rdi)\n\tvzeroupper\n\tretq\n.Lfunc_end22:"
+      ]
+    },
+    {
+      "variant": "c-static",
+      "architecture": "arm",
+      "source_sha256": "43b6c79e761d0bf3ae6ec8dc6645627abae8d020d09c809fe1e9f32afe35f3cb",
+      "assembly_sha256": "79bdecf00cb2616a1304e2e6a020ecee55b09be6af134c2001bf23ec04419249",
+      "lines": 8786,
+      "scalar_masks_symbol": false,
+      "vector_masks_symbol": false,
+      "pclmul_sites": 0,
+      "excerpt": []
+    },
+    {
+      "variant": "c-static",
+      "architecture": "haswell",
+      "source_sha256": "43b6c79e761d0bf3ae6ec8dc6645627abae8d020d09c809fe1e9f32afe35f3cb",
+      "assembly_sha256": "bb8d711496c8a57b430350d7b1fb62221ba57219c81f67039ee224302d8638b3",
+      "lines": 8375,
+      "scalar_masks_symbol": false,
+      "vector_masks_symbol": false,
+      "pclmul_sites": 5,
+      "excerpt": [
+        "\tmovq\t16(%rsp), %r8\n\tmovq\t%r15, %rsi\n\tmovq\t24(%rsp), %r15\n.LBB10_29:\n\txorl\t%eax, %eax\n\tpopcntq\t%r12, %rax\n\tvmovdqu\t(%rsi), %ymm0\n\tvmovdqu\t32(%rsi), %ymm1\n\tvpbroadcastd\t.LCPI10_3(%rip), %ymm3\n\tvpcmpeqb\t%ymm3, %ymm1, %ymm2\n\tvpcmpeqb\t%ymm3, %ymm0, %ymm3\n\tvpmovmskb\t%ymm3, %ecx\n\tvpmovmskb\t%ymm2, %r12d\n\tshlq\t$32, %r12\n\torq\t%rcx, %r12\n\tvmovq\t%r12, %xmm2\n\tvpbroadcastq\t%xmm2, %xmm2\n\tvpcmpeqd\t%xmm3, %xmm3, %xmm3\n\tvpclmulqdq\t$0, %xmm3, %xmm2, %xmm2\n\taddq\t%rax, %r9\n\tvpbroadcastd\t.LCPI10_4(%rip), %ymm4\n\tvpcmpeqb\t%ymm4, %ymm0, %ymm3\n\tvpcmpeqb\t%ymm4, %ymm1, %ymm4\n\tvpbroadcastd\t.LCPI10_5(%rip), %ymm5\n\tvpcmpeqb\t%ymm5, %ymm0, %ymm0\n\tvpor\t%ymm0, %ymm3, %ymm0\n\tvpcmpeqb\t%ymm5, %ymm1, %ymm1\n\tvpor\t%ymm1, %ymm4, %ymm1\n\tvpmovmskb\t%ymm0, %eax\n\tvpmovmskb\t%ymm1, %ecx\n\tshlq\t$32, %rcx\n\torq\t%rax, %rcx\n\tvmovq\t%xmm2, %rax\n\txorq\t%rbp, %rax\n\tmovq\t%rax, %rbp\n\tsarq\t$63, %rbp\n\tandnq\t%rcx, %rax, %rdx"
+      ]
+    },
+    {
+      "variant": "c-static",
+      "architecture": "x86-generic",
+      "source_sha256": "43b6c79e761d0bf3ae6ec8dc6645627abae8d020d09c809fe1e9f32afe35f3cb",
+      "assembly_sha256": "de981ab0332e516b36d76d886d3351204d42e54be077c05368e4da66dadd7466",
+      "lines": 9994,
+      "scalar_masks_symbol": false,
+      "vector_masks_symbol": true,
+      "pclmul_sites": 1,
+      "excerpt": [
+        "\t.byte\t10\n\t.section\t.text._RNvCs1jBwe9EQnfh_8c_static12vector_masks,\"ax\",@progbits\n\t.p2align\t4\n\t.type\t_RNvCs1jBwe9EQnfh_8c_static12vector_masks,@function\n_RNvCs1jBwe9EQnfh_8c_static12vector_masks:\n\t.cfi_startproc\n\tvmovdqu\t(%rsi), %ymm0\n\tvmovdqu\t32(%rsi), %ymm1\n\tvpbroadcastb\t.LCPI21_3(%rip), %ymm2\n\tvpcmpeqb\t%ymm2, %ymm1, %ymm3\n\tvpcmpeqb\t%ymm2, %ymm0, %ymm2\n\tvpmovmskb\t%ymm2, %eax\n\tvpmovmskb\t%ymm3, %ecx\n\tshlq\t$32, %rcx\n\torq\t%rax, %rcx\n\tvmovq\t%rcx, %xmm2\n\tvpbroadcastq\t%xmm2, %xmm2\n\tvpcmpeqd\t%xmm3, %xmm3, %xmm3\n\tvpclmulqdq\t$0, %xmm3, %xmm2, %xmm2\n\tvpbroadcastb\t.LCPI21_4(%rip), %ymm3\n\tvpcmpeqb\t%ymm3, %ymm1, %ymm4\n\tvpcmpeqb\t%ymm3, %ymm0, %ymm3\n\tvpbroadcastb\t.LCPI21_5(%rip), %ymm5\n\tvpcmpeqb\t%ymm5, %ymm1, %ymm1\n\tvpor\t%ymm1, %ymm4, %ymm1\n\tvpcmpeqb\t%ymm5, %ymm0, %ymm0\n\tvpor\t%ymm0, %ymm3, %ymm0\n\tvpmovmskb\t%ymm0, %eax\n\tvpmovmskb\t%ymm1, %edx\n\tshlq\t$32, %rdx\n\torq\t%rax, %rdx\n\tmovq\t%rcx, (%rdi)\n\tmovq\t%rdx, 8(%rdi)\n\tvmovq\t%xmm2, 16(%rdi)\n\tvzeroupper\n\tretq\n.Lfunc_end21:"
+      ]
+    }
+  ]
+}

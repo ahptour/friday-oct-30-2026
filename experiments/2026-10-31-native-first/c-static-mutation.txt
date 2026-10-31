@@ -1,0 +1,20 @@
+
+running 1 test
+test scanner_tests::every_start_and_tail_matches_independent_byte_scanner ... FAILED
+
+failures:
+
+---- scanner_tests::every_start_and_tail_matches_independent_byte_scanner stdout ----
+
+thread 'scanner_tests::every_start_and_tail_matches_independent_byte_scanner' (3860428) panicked at .out/native-first/assembly/c-static-broken.rs:591:13:
+assertion `left == right` failed: start=0, len=5
+  left: (5, 0)
+ right: (3, 0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    scanner_tests::every_start_and_tail_matches_independent_byte_scanner
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

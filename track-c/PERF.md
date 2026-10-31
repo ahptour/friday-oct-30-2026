@@ -448,3 +448,22 @@ No local compilation, execution, tests or Docker were used. Public-data gate
 success does not establish correctness on the final holdout seed. The selected
 combination retains A, restores B/C, and keeps D; its next board run is a repeat
 of these selected implementations, not another algorithm experiment.
+
+
+## Native classifier-specialization screen (2026-10-31; rejected)
+
+A const-generic classifier selected once per parser removed the source-level
+function pointer. Generated native ARM and Linux Haswell assembly showed the
+baseline classifier was already specialized and inlined; generic x86 retained
+runtime dispatch. The presumed native indirect-call cost was absent.
+
+Ten timings per variant on full seeds 1 and 42: baseline -> candidate medians
+28.608 -> 28.818 ms and 28.360 -> 28.348 ms. Peak footprint was effectively flat.
+The candidate adds 12 local nonblank/noncomment Rust lines; no credible full-score
+benefit exists. Production is unchanged. All 12 existing Python-reference suites
+passed, plus a byte-scanner oracle over 64 start offsets and 256 tail lengths.
+Removing newline classification in an isolated copy made that oracle fail.
+Raw samples, complete sources, mutation evidence and code-generation observations
+are `c-static-*` and `c-codegen.json` under
+[`2026-10-31-native-first`](../experiments/2026-10-31-native-first/).
+No Intel performance or holdout claim is made.

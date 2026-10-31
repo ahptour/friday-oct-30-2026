@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build, check and compare native solutions serially; never uses Docker."""
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import importlib.util
 import json
@@ -18,7 +19,15 @@ import unittest
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 WORK = ROOT / '.out/native-first'
+FLAGS = ['--edition=2024', '-C', 'opt-level=3', '-C', 'lto=thin',
+         '-C', 'codegen-units=1', '-C', 'panic=abort', '-C', 'strip=symbols',
+         '-C', 'target-cpu=native']
 OUTPUT = {'a': 'summary.txt', 'b': 'results.txt', 'c': 'aggregates.txt', 'd': 'distances.txt'}
+
+
+def digest_file(path):
+    with path.open('rb') as handle:
+        return hashlib.file_digest(handle, 'sha256').hexdigest()
 
 
 def context(name):
@@ -38,10 +47,12 @@ def build(names):
         shutil.copyfile(HERE / f'{name}.rs', target / 'src/main.rs')
         for f in ('Cargo.toml', 'Cargo.lock'):
             shutil.copyfile(ROOT / f'track-{track}' / f, target / f)
-        subprocess.run(['rustc', '--edition=2024', '-C', 'opt-level=3', '-C', 'lto=thin',
-                        '-C', 'codegen-units=1', '-C', 'panic=abort', '-C', 'strip=symbols',
-                        '-C', 'target-cpu=native', str(target / 'src/main.rs'),
-                        '-o', str(binary(name))], check=True)
+        command = ['rustc', *FLAGS, str(target / 'src/main.rs'), '-o', str(binary(name))]
+        subprocess.run(command, check=True)
+        metadata = dict(command=command, source_sha256=digest_file(target / 'src/main.rs'),
+                        executable_sha256=digest_file(binary(name)),
+                        compiler=subprocess.check_output(['rustc', '-vV'], text=True).strip())
+        (target / 'build.json').write_text(json.dumps(metadata, indent=2) + '\n')
         print('built', name, flush=True)
 
 
@@ -64,8 +75,14 @@ def benchmark(names, seeds, trials, report_name):
     track = names[0][0]
     rows = []
     source_hashes = {name: hashlib.sha256((HERE / f'{name}.rs').read_bytes()).hexdigest() for name in names}
+    builds = {}
+    input_hashes = {}
+    oracle_hashes = {}
     for name in names:
         assert (HERE / f'{name}.rs').read_bytes() == (context(name) / 'src/main.rs').read_bytes(), f'rebuild {name}'
+        builds[name] = json.loads((context(name) / 'build.json').read_text())
+        assert builds[name]['source_sha256'] == source_hashes[name], f'rebuild {name}'
+        assert builds[name]['executable_sha256'] == digest_file(binary(name)), f'rebuild {name}'
     for seed in seeds:
         data = ROOT / f'data/{track}/full-seed{seed}'
         expected_path = WORK / f'oracle-{track}-seed{seed}' / OUTPUT[track]
@@ -74,6 +91,9 @@ def benchmark(names, seeds, trials, report_name):
         else:
             spec = (ROOT / f'.out/setup/harness/specs/{dict(a="a-ingest",b="b-index",c="c-join",d="d-traverse")[track]}.md').read_text()
             raise RuntimeError(f'Missing oracle output {expected_path}; generate or copy verified reference output first')
+        oracle_hashes[str(seed)] = dict(sha256=expected, path=str(expected_path),
+                                       origin='previously verified reference output; not a fresh reference run')
+        input_hashes[str(seed)] = {f.name: digest_file(f) for f in sorted(data.iterdir()) if f.is_file()}
         # Warm page cache outside the timed process. Benchmarks remain serial.
         for f in data.iterdir():
             if f.is_file():
@@ -113,7 +133,10 @@ def benchmark(names, seeds, trials, report_name):
             summary[f'{name}/seed{seed}'] = dict(median_ms=statistics.median(timing), min_ms=min(timing), max_ms=max(timing),
                 max_rss_bytes=max(r['maximum resident set size'] for r in memory),
                 max_peak_footprint_bytes=max(r['peak memory footprint'] for r in memory))
-    report = dict(platform=platform.platform(), machine=platform.machine(),
+    report = dict(recorded_utc=datetime.now(timezone.utc).isoformat(),
+                  runner_sha256=digest_file(Path(__file__)),
+                  build=builds, input_sha256=input_hashes, oracle=oracle_hashes,
+                  platform=platform.platform(), machine=platform.machine(),
                   compiler=subprocess.check_output(['rustc', '--version'], text=True).strip(),
                   flags='opt-level=3 lto=thin codegen-units=1 panic=abort strip=symbols target-cpu=native',
                   timing='perf_counter_ns around native subprocess; 2 warmups; randomized serialized order',

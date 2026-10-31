@@ -1,0 +1,78 @@
+{
+  "snapshot_utc": "2026-10-31T04:55:28Z",
+  "reference": "published calibration-seed1.json and reference_axes.json; actual harness scoring.py",
+  "rows": {
+    "a": {
+      "latest_run": "run-68a5c7c03d7d",
+      "commit": "1bc5fb6322745fb91afd25fbeab273beb06a99cb",
+      "time_ms": 37.351,
+      "memory_MB": 23.330816,
+      "S": 488,
+      "D": 1,
+      "K": 33.396758684773744,
+      "points": 76.185216,
+      "historical_best_points": 78.13988,
+      "memory_cap_MB": 4.5596672,
+      "target_80_time_ms": 26.28517487322939,
+      "source_half_delta": 2.257724892450355,
+      "memory_20pct_delta": 0.9691000550510722
+    },
+    "b": {
+      "latest_run": "run-c0aa86c4d47d",
+      "commit": "1bc5fb6322745fb91afd25fbeab273beb06a99cb",
+      "time_ms": 446.538,
+      "memory_MB": 70.979584,
+      "S": 541,
+      "D": 1,
+      "K": 17.08676528783839,
+      "points": 61.632993,
+      "historical_best_points": 61.902928,
+      "memory_cap_MB": 43.999232,
+      "target_80_time_ms": 82.25799706233038,
+      "source_half_delta": 2.257724657034437,
+      "memory_20pct_delta": 0.969099819635133
+    },
+    "c": {
+      "latest_run": "run-151392bc22f5",
+      "commit": "1bc5fb6322745fb91afd25fbeab273beb06a99cb",
+      "time_ms": 54.787,
+      "memory_MB": 13.881344,
+      "S": 540,
+      "D": 1,
+      "K": 24.55898143002105,
+      "points": 69.510518,
+      "historical_best_points": 70.12232,
+      "memory_cap_MB": 7.34871552,
+      "target_80_time_ms": 20.849623725698365,
+      "source_half_delta": 2.25772450361049,
+      "memory_20pct_delta": 0.9690996662111928
+    },
+    "d": {
+      "latest_run": "run-e6b783186967",
+      "commit": "1bc5fb6322745fb91afd25fbeab273beb06a99cb",
+      "time_ms": 269.93600000000004,
+      "memory_MB": 111.017984,
+      "S": 457,
+      "D": 1,
+      "K": 17.467515027040854,
+      "points": 62.111556,
+      "historical_best_points": 63.181152,
+      "memory_cap_MB": 17.85831424,
+      "target_80_time_ms": 51.9664511273968,
+      "source_half_delta": 2.257725244657955,
+      "memory_20pct_delta": 0.969100407258658
+    }
+  },
+  "board_sha256": "70937b0d8fc3ca33bb6aee2097a84af6e8f76deb6a3d6b906f89b087d40a7d1d",
+  "break_even_time_ratio": "(effective_M_old/effective_M_new)^0.4 * (effective_S_old/effective_S_new)^0.3 * (D_old/D_new)^0.3",
+  "effective_axes": "effective_M=max(M,M_ref/50); effective_S=max(S,S_ref)",
+  "B_source_541_to_estimated_566": {
+    "source_count_is_estimate": true,
+    "break_even_new_over_old_time": 0.9865389810474763,
+    "time_reduction_required_percent": 1.3461018952523718
+  },
+  "equal_judges_best_B_to_best_D": {
+    "machine_points_gap": 1.2782239999999945,
+    "time_reduction_percent_if_other_axes_fixed": 11.10628835449784
+  }
+}

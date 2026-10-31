@@ -58,13 +58,13 @@ impl Hasher for Fast {
         self.0
     }
     fn write(&mut self, bytes: &[u8]) {
-        if bytes.len() == 32 {
+        if bytes.len() == 16 || bytes.len() == 32 {
             let word = |i| u64::from_le_bytes(bytes[i..i + 8].try_into().unwrap());
-            self.0 = (word(0)
-                ^ word(8).rotate_left(13)
-                ^ word(16).rotate_left(27)
-                ^ word(24).rotate_left(41))
-            .wrapping_mul(0x517cc1b727220a95);
+            let mut value = word(0) ^ word(8).rotate_left(13);
+            if bytes.len() == 32 {
+                value ^= word(16).rotate_left(27) ^ word(24).rotate_left(41);
+            }
+            self.0 = value.wrapping_mul(0x517cc1b727220a95);
             self.0 ^= self.0 >> 32;
         } else {
             for &byte in bytes {
@@ -78,6 +78,32 @@ impl Hasher for Fast {
     }
 }
 type Table<K, V> = HashMap<K, V, BuildHasherDefault<Fast>>;
+
+#[derive(Default)]
+struct Dictionary {
+    short: Table<[u8; 16], usize>,
+    long: Table<[u8; 32], usize>,
+}
+impl Dictionary {
+    fn len(&self) -> usize {
+        self.short.len() + self.long.len()
+    }
+    fn get(&self, key: &[u8; 32], len: usize) -> Option<&usize> {
+        if len <= 16 {
+            self.short.get(<&[u8; 16]>::try_from(&key[..16]).unwrap())
+        } else {
+            self.long.get(key)
+        }
+    }
+    fn insert(&mut self, key: [u8; 32], len: usize, id: usize) {
+        if len <= 16 {
+            self.short
+                .insert(<[u8; 16]>::try_from(&key[..16]).unwrap(), id);
+        } else {
+            self.long.insert(key, id);
+        }
+    }
+}
 
 struct Query {
     terms: Vec<usize>,
@@ -106,7 +132,7 @@ struct Clause {
 }
 fn anchors(
     input: &[u8],
-    dictionary: &Table<[u8; 32], usize>,
+    dictionary: &Dictionary,
     queries: &[Query],
 ) -> (Vec<Vec<usize>>, Vec<Clause>, Vec<u32>) {
     let mut frequencies = vec![0u32; dictionary.len()];
@@ -123,7 +149,7 @@ fn anchors(
             for (dst, &byte) in key.iter_mut().zip(word) {
                 *dst = byte.to_ascii_lowercase();
             }
-            if let Some(&term) = dictionary.get(&key)
+            if let Some(&term) = dictionary.get(&key, word.len())
                 && seen[term] != doc as u32
             {
                 seen[term] = doc as u32;
@@ -320,7 +346,7 @@ fn read_token(input: &[u8], pos: &mut usize, token: &mut [u8; 32]) -> usize {
 }
 fn parse(
     input: &[u8],
-    dictionary: &Table<[u8; 32], usize>,
+    dictionary: &Dictionary,
     anchors: &[Vec<usize>],
     queries: &[Query],
     clauses: &[Clause],
@@ -370,7 +396,7 @@ fn parse(
                 pos += 1;
                 continue;
             }
-            let term = dictionary.get(&token).copied().unwrap_or(usize::MAX);
+            let term = dictionary.get(&token, len).copied().unwrap_or(usize::MAX);
             tokens.push(term);
             if term != usize::MAX {
                 if bits[term] == 0 {
@@ -414,7 +440,7 @@ fn parse(
 
 fn solve(data: &Path, out: &Path) -> io::Result<()> {
     let query_text = fs::read(data.join("queries.txt"))?;
-    let mut dictionary: Table<[u8; 32], usize> = Table::default();
+    let mut dictionary = Dictionary::default();
     let mut queries = Vec::new();
     let mut phrases = 0;
     for line in query_text
@@ -439,11 +465,11 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
             }
             let mut key = [0; 32];
             key[..word.len()].copy_from_slice(word);
-            let id = match dictionary.get(&key) {
+            let id = match dictionary.get(&key, word.len()) {
                 Some(&id) => id,
                 None => {
                     let id = dictionary.len();
-                    dictionary.insert(key, id);
+                    dictionary.insert(key, word.len(), id);
                     id
                 }
             };

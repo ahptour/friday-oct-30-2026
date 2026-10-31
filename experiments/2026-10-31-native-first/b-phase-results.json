@@ -1,0 +1,52 @@
+{
+  "build": {
+    "command": [
+      "rustc",
+      "--edition=2024",
+      "-C",
+      "opt-level=3",
+      "-C",
+      "lto=thin",
+      "-C",
+      "codegen-units=1",
+      "-C",
+      "panic=abort",
+      "-C",
+      "strip=symbols",
+      "-C",
+      "target-cpu=native",
+      "/Users/aa/friday-oct-30-2026/.out/native-first/b-phase/src/main.rs",
+      "-o",
+      "/Users/aa/friday-oct-30-2026/.out/native-first/b-phase/target/release/solution"
+    ],
+    "source_sha256": "9f006af31a4bf570c5fda6c5bab1dbf7a9f21ce68cba13f407db4660ff793ef7",
+    "executable_sha256": "06f80f65fa65b208a3213883fd5af5f719694d026d7900f248b329a7ffbebc93",
+    "compiler": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: aarch64-apple-darwin\nrelease: 1.98.1\nLLVM version: 22.1.8"
+  },
+  "rows": [
+    {
+      "seed": 1,
+      "repeat": 0,
+      "stderr": "worker total_ms=136.818 flush_ms=27.552 tokens=3026589 clauses=1817467 phrases=107893\nworker total_ms=136.735 flush_ms=27.310 tokens=3020245 clauses=1811848 phrases=110428\nworker total_ms=137.023 flush_ms=27.683 tokens=3023898 clauses=1819082 phrases=110754\nworker total_ms=137.065 flush_ms=27.511 tokens=3024418 clauses=1811726 phrases=110052\nworker total_ms=137.095 flush_ms=27.479 tokens=3021679 clauses=1822033 phrases=109818\nworker total_ms=136.772 flush_ms=27.474 tokens=3021908 clauses=1818331 phrases=109075\nworker total_ms=137.336 flush_ms=27.461 tokens=3022513 clauses=1812878 phrases=110360\nworker total_ms=137.536 flush_ms=27.637 tokens=3024216 clauses=1812491 phrases=110454\nworker total_ms=137.615 flush_ms=27.717 tokens=3025421 clauses=1816187 phrases=110852\nworker total_ms=139.678 flush_ms=28.017 tokens=3022787 clauses=1814359 phrases=110485\nworker total_ms=142.584 flush_ms=28.759 tokens=3020694 clauses=1821699 phrases=110047\nworker total_ms=143.115 flush_ms=28.666 tokens=3022289 clauses=1815937 phrases=110301\n",
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "seed": 1,
+      "repeat": 1,
+      "stderr": "worker total_ms=133.339 flush_ms=26.684 tokens=3022289 clauses=1815937 phrases=110301\nworker total_ms=133.507 flush_ms=26.830 tokens=3021679 clauses=1822033 phrases=109818\nworker total_ms=133.639 flush_ms=26.766 tokens=3020245 clauses=1811848 phrases=110428\nworker total_ms=133.641 flush_ms=26.679 tokens=3022787 clauses=1814359 phrases=110485\nworker total_ms=133.852 flush_ms=26.885 tokens=3020694 clauses=1821699 phrases=110047\nworker total_ms=134.021 flush_ms=26.794 tokens=3021908 clauses=1818331 phrases=109075\nworker total_ms=134.078 flush_ms=26.797 tokens=3022513 clauses=1812878 phrases=110360\nworker total_ms=136.973 flush_ms=27.705 tokens=3024418 clauses=1811726 phrases=110052\nworker total_ms=137.048 flush_ms=27.551 tokens=3023898 clauses=1819082 phrases=110754\nworker total_ms=137.317 flush_ms=27.492 tokens=3026589 clauses=1817467 phrases=107893\nworker total_ms=137.646 flush_ms=27.694 tokens=3025421 clauses=1816187 phrases=110852\nworker total_ms=139.251 flush_ms=28.136 tokens=3024216 clauses=1812491 phrases=110454\n",
+      "sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "seed": 42,
+      "repeat": 0,
+      "stderr": "worker total_ms=133.127 flush_ms=26.654 tokens=3013409 clauses=1820205 phrases=105846\nworker total_ms=133.281 flush_ms=26.639 tokens=3014029 clauses=1821457 phrases=104936\nworker total_ms=133.382 flush_ms=26.624 tokens=3015479 clauses=1816759 phrases=106055\nworker total_ms=133.341 flush_ms=26.674 tokens=3014691 clauses=1833048 phrases=105950\nworker total_ms=133.468 flush_ms=26.813 tokens=3013824 clauses=1825699 phrases=106391\nworker total_ms=133.682 flush_ms=26.658 tokens=3014337 clauses=1816743 phrases=106323\nworker total_ms=133.714 flush_ms=26.695 tokens=3013269 clauses=1822759 phrases=105837\nworker total_ms=133.831 flush_ms=26.703 tokens=3015018 clauses=1823565 phrases=106561\nworker total_ms=134.387 flush_ms=27.050 tokens=3015600 clauses=1829169 phrases=105769\nworker total_ms=136.457 flush_ms=27.294 tokens=3018744 clauses=1820744 phrases=103753\nworker total_ms=140.035 flush_ms=28.205 tokens=3016456 clauses=1815464 phrases=105094\nworker total_ms=140.367 flush_ms=28.307 tokens=3014628 clauses=1815370 phrases=105556\n",
+      "sha256": "f853a72cd18c2535183170a22482f363a251ac88fec1ed419791e1572dbfdffd"
+    },
+    {
+      "seed": 42,
+      "repeat": 1,
+      "stderr": "worker total_ms=134.818 flush_ms=27.044 tokens=3015479 clauses=1816759 phrases=106055\nworker total_ms=135.184 flush_ms=26.836 tokens=3013824 clauses=1825699 phrases=106391\nworker total_ms=135.433 flush_ms=27.125 tokens=3014691 clauses=1833048 phrases=105950\nworker total_ms=135.498 flush_ms=27.172 tokens=3013409 clauses=1820205 phrases=105846\nworker total_ms=135.663 flush_ms=27.112 tokens=3016456 clauses=1815464 phrases=105094\nworker total_ms=135.627 flush_ms=27.190 tokens=3013269 clauses=1822759 phrases=105837\nworker total_ms=135.705 flush_ms=27.019 tokens=3014337 clauses=1816743 phrases=106323\nworker total_ms=135.740 flush_ms=27.064 tokens=3014029 clauses=1821457 phrases=104936\nworker total_ms=137.524 flush_ms=27.646 tokens=3015018 clauses=1823565 phrases=106561\nworker total_ms=138.378 flush_ms=27.909 tokens=3014628 clauses=1815370 phrases=105556\nworker total_ms=138.658 flush_ms=27.969 tokens=3015600 clauses=1829169 phrases=105769\nworker total_ms=141.389 flush_ms=28.462 tokens=3018744 clauses=1820744 phrases=103753\n",
+      "sha256": "f853a72cd18c2535183170a22482f363a251ac88fec1ed419791e1572dbfdffd"
+    }
+  ]
+}

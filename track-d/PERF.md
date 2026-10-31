@@ -646,3 +646,26 @@ collected, so this result does not isolate a cause. A public-seed gate pass is
 not a holdout proof. No local Docker, compilation, solution execution, tests or
 benchmarks were run. Formatting/whitespace checks passed; the restored Rust
 source is byte-identical to the preceding selected implementation.
+
+
+## Native radix-queue screen (2026-10-31; rejected)
+
+Replace only the selected search queue with 64 radix distance buckets and a
+binary heap of nodes at the current distance. Preserve full uint64 distances,
+nonnegative-edge monotonicity, exact node ordering for equal distances, sparse
+labels, graph construction and worker count. The hypothesis was fewer heap
+comparisons in the locally dominant query phase.
+
+Ten timings per variant on full seeds 1 and 42: baseline -> candidate medians
+75.663 -> 82.826 ms and 77.789 -> 84.947 ms. Candidate peak Mac footprint was
+152,764,920 / 155,484,664 bytes versus 146,866,680 / 150,962,680 bytes. Both
+runtime (about 9% slower) and footprint lose, while local source grows by 34
+nonblank/noncomment lines. Reject the candidate; production is unchanged.
+
+All 11 existing Python-reference differential suites passed. A targeted queue
+oracle compared 160,000 mixed operations plus complete drains against the
+standard binary heap, including ties, width boundaries and repeated clear/reuse.
+An isolated node-ID mutation made that oracle fail. Complete sources and every
+run are `d-radix-*` under
+[`2026-10-31-native-first`](../experiments/2026-10-31-native-first/).
+These are native Apple M4 Max observations, not Intel or holdout evidence.

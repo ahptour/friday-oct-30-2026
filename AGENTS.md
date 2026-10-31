@@ -51,8 +51,9 @@ no AVX-512, and an 8 GB run limit. Local capacity is not the submission budget.
   minimum. Do not call a seed-specific or overlapping result a clear win.
 - Record source AND executable hashes, compiler/flags, input hashes/seed/scale,
   output hashes, machine, measurement method and raw samples. Verify the binary
-  actually corresponds to the archived source. The current native runner records
-  source hashes but still needs executable/input hashes added to its reports.
+  actually corresponds to the archived source. The native runner now records
+  source, executable and input hashes plus build metadata. Earlier reports lack
+  some fields; do not retroactively infer identities that were not recorded.
 - Measure memory separately with macOS `/usr/bin/time -l`; label maximum RSS and
   peak footprint explicitly. Neither equals Linux cgroup `memory.peak`. Mapped
   input pages can dominate RSS; do not compare unlike metrics as memory savings.
@@ -163,22 +164,256 @@ Check the [current rules](https://speeddemon.dev/#rules), frozen track specs and
 scoring implementation when needed. No cached answers, seed recognition or oracle
 changes. All input-derived preprocessing belongs inside the measured run.
 
+### Optimize the score before implementing the idea
+
+Turn K into a precise optimization target. Before a change, ask whether its
+expected score gain justifies its runtime, memory, formatted-source and dependency
+costs. The formula prices tradeoffs; profiling and experiments identify which
+algorithms can achieve them. The active objective is winning the current contest.
+A public article is a separate task and should not displace performance work.
+
+Use the [published coefficient](https://speeddemon.dev/#coefficient), frozen specs
+and actual `harness/scoring.py`. Reference measurements are fixed scoring anchors,
+not the current leader's results. Refresh the official feed when choosing work,
+preserve its timestamp/raw response, and keep latest runs separate from historical
+bests. The final frozen commit is scored on an unseen seed; historical-best board
+entries do not assemble the final submission for us.
+
+### Exact adjusted runtime, including caps
+
 K weights time 0.50, memory 0.20, formatted source 0.15 and dependencies 0.15.
-Memory improvement is capped at 50×; source/dependency ratios cannot reward going
-below their floors. Away from caps and point clamps:
+For a fixed track and reference, define normalized costs:
 
 ```text
-Delta machine points = 25 log10(Told/Tnew) + 10 log10(Mold/Mnew)
-                     + 7.5 log10(Sold/Snew) + 7.5 log10(Dold/Dnew)
+m = max(M / Mref, 1/50)
+s = max(S / Sref, 1)
+d = max(D / Dref, 1)
+
+E = T * m^0.4 * s^0.3 * d^0.3
+K = sqrt(Tref / E)
+P = clamp(50 * log10(K), 0, 100)
 ```
 
-Use the actual scoring function near caps. Mac memory is not a substitute for M
-in an official score claim. Include source/dependency growth in the decision.
-The final frozen commit is scored on an unseen seed; historical-best board
-entries do not assemble the final submission for us. PERF.md should cite official
-run IDs and preserve the raw feed used to make each selection.
+Minimizing adjusted runtime E is exactly equivalent to maximizing K within that
+track. The dependency floor is consistent with valid contest inputs: Dref=1 and
+D=1 plus direct non-stdlib runtime dependencies. E has time units; keep units
+consistent. Do not compare E across tracks with different references as though
+it were the overall score. K can still improve above the 100-point clamp and
+matters to the highest-K prize, even when machine points cannot increase.
 
-## Current handoff — 2026-10-31, refresh before acting
+For positive costs, equivalently minimize:
+
+```text
+T * max(M, Mref/50)^0.4 * max(S, Sref)^0.3 * D^0.3
+```
+
+Memory reduction earns nothing below Mref/50; source reduction earns nothing
+below Sref; dependency weight cannot fall below 1. Published seed-1 reference
+calibration gives these memory floors (decimal MB, not MiB):
+
+| Track | Reference source lines | Memory reward stops below MB |
+|---|---:|---:|
+| A | 56 | 4.559667 |
+| B | 91 | 43.999232 |
+| C | 108 | 7.348716 |
+| D | 43 | 17.858314 |
+
+Recompute against the reference used for final scoring if its holdout calibration
+changes. All four official peaks in the saved `1bc5fb6` snapshot exceed their
+floors. Mac RSS and peak footprint are not official M: local reports must label
+E/K/points as unavailable or explicitly hypothetical when official axes are
+missing. Never mix Mac runtime/footprint with Intel reference axes and call it a
+measured contest score. Estimated S must remain labeled until the official pass.
+
+### Point exchange rates and break-even budgets
+
+Before the point clamp, the exact change using normalized costs is:
+
+```text
+Delta P = 25 log10(Told/Tnew) + 10 log10(mold/mnew)
+        + 7.5 log10(sold/snew) + 7.5 log10(dold/dnew)
+```
+
+P is the machine score. Apply the actual scoring function and clamp to both
+implementations when reporting points. Final track deltas below assume unchanged
+judge score and no point-clamp interference.
+
+| Change, all other axes unchanged | Machine points gained | Final track points gained (65%) |
+|---|---:|---:|
+| Halve runtime | 7.526 | 4.892 |
+| Halve memory without crossing its reward cap | 3.010 | 1.957 |
+| Halve counted source, remaining at/above the reference | 2.258 | 1.468 |
+| Remove the only runtime dependency, D2 -> D1 | 2.258 | 1.468 |
+| Reduce runtime by 10% | 1.144 | 0.744 |
+| Reduce counted source by 10%, above its floor | 0.343 | 0.223 |
+
+Percentage changes determine these gains: 400 -> 200 ms and 40 -> 20 ms earn the
+same time contribution. A 10% slower implementation that halves memory gains
+about 1.975 machine points when the memory cap does not interfere.
+
+Set the candidate's maximum break-even runtime BEFORE a substantial rewrite:
+
+```text
+B = Told * (mold/mnew)^0.4 * (sold/snew)^0.3 * (dold/dnew)^0.3
+Improve K only if Tnew < B.
+
+For a desired gain g in pre-clamp machine points:
+Ttarget <= B * 10^(-g/25)
+```
+
+Use estimates to screen an idea, then replace them with measured axes. Include
+all input-derived preprocessing and output in T. Seek a margin larger than the
+observed measurement variability, not a barely positive point estimate. With
+other axes unchanged, +5 machine points requires Tnew <= 0.630957 * Told.
+
+| Proposed cost increase, above the relevant floors | Runtime reduction needed just to break even |
+|---|---:|
+| 10% more source | 2.82% |
+| 50% more source | 11.45% |
+| Twice the source | 18.77% |
+| First runtime dependency, D1 -> D2 | 18.77% |
+| Twice the memory | 24.21% |
+| Twice the memory and twice the source | 38.44% |
+| S541 -> estimated S566 | 1.35% |
+
+A 20% runtime reduction cannot repay twice the memory by itself. Conversely,
+20% less memory can tolerate 9.34% more runtime; 20% less source can tolerate
+6.92% more runtime while above its floor. Dependencies are a priced choice:
+an allowed dependency reducing counted source from 600 to 200 lines (both above
+Sref), while changing D1 -> D2, gains about 1.321 machine points at unchanged
+T/M. Verify library eligibility and track restrictions before applying that case.
+
+### Recorded example: faster Track A implementation lost points
+
+The compact-record experiment in `track-a/PERF.md` compares historical baseline
+`run-e3bf174864d4` at `420d664` with `run-4932f1d71ccd` at `330dbc3`:
+
+| Axis | Historical baseline | Compact-record candidate |
+|---|---:|---:|
+| T, ms | 49.090 | 45.323 |
+| M, bytes | 19,177,472 | 25,317,376 |
+| S | 272 | 465 |
+| D | 1 | 1 |
+| Machine points | 75.973214 | 73.887169 |
+
+Time contributed +0.866860, memory -1.206273 and source -1.746630 machine
+points, totaling -2.086045. At those M/S costs the candidate needed less than
+37.400 ms to break even. The immediate baseline repeat differed materially;
+this historical comparison does not isolate a precise causal effect. No recorded
+comparison established a score win. Preserve the rejected implementation and
+raw evidence rather than treating its faster runtime as sufficient.
+
+### Choose work by its effect on the overall score
+
+Final track total Q = 0.65 * P + 0.35 * J. The overall score is the geometric
+mean of the best three FINAL track totals, not machine points alone. For a fixed
+counting set of three positive totals:
+
+```text
+G = (Q1 * Q2 * Q3)^(1/3)
+dG/dQi = G / (3 * Qi)
+```
+
+An extra point on the weakest counting track has greatest marginal value when
+effort, risk and attainable gain are comparable. D is a preferred target under
+those conditions while A/C/D are the counting tracks. Refresh that assumption;
+an easier reliable A/C win can be better, and judge scores can change the set.
+B remains a possible replacement: compare improving D with improving B enough
+to enter the top three. A small gain on a fourth-place track may have no overall
+effect. Report both fixed-judge scenarios and uncertainty rather than presenting
+the top-three machine aggregate as the final result.
+
+Use a coherent latest-commit snapshot to assess the current selection. A later
+preserved feed, generated 2026-10-31T04:55:28Z (October 30, 21:55 PDT), records
+all four latest runs at `1bc5fb6`; these supersede the earlier 21:42 PDT example
+supplied in conversation:
+
+| Track | T, ms | M, bytes | S | D | Machine points |
+|---|---:|---:|---:|---:|---:|
+| A | 37.351 | 23,330,816 | 488 | 1 | 76.185216 |
+| B | 446.538 | 70,979,584 | 541 | 1 | 61.632993 |
+| C | 54.787 | 13,881,344 | 540 | 1 | 69.510518 |
+| D | 269.936 | 111,017,984 | 457 | 1 | 62.111556 |
+
+The full feed and calculation are preserved in
+`experiments/2026-10-31-native-first/intel-1bc5fb6.json` and `score-budget.json`.
+These are dated observations, not permanent targets. At unchanged axes in that
+snapshot, B needs about 427.283 ms to reach D's machine score. Separately, their
+historical-best machine points were B61.902928 and D63.181152: the 1.278224-point
+gap requires about 11.11% less B runtime at unchanged B axes. Do not mix the
+historical-best scores with latest-run timings to calculate a budget. Final
+holdout scoring uses the recorded frozen source, not either board-best mosaic.
+
+For the earlier hypothetical D baseline 246.987 ms, a five-machine-point target
+at unchanged axes is 155.838 ms. This is an illustrative budget, not a prediction.
+Reducing A source from 488 to 350 lines above its floor gains about 1.083 machine
+points at unchanged T/M/D. Source cleanup has value, but weigh it against changes
+to time, correctness, clarity and verification effort.
+
+A 10-point improvement in judge score adds 3.5 final track points. Matching that
+through time alone requires about a 1.64x speedup at fixed other axes, away from
+clamps. Preserve code quality, technique explanations and an honest `PERF.md`
+with official run IDs/raw evidence. Comments and blank lines do not count toward
+S; removing explanations does not reduce counted code. Do not trade correctness
+or clarity for an unsupported tiny K gain.
+
+### Required experiment report and selection process
+
+Every candidate report should include, when the axes are available:
+
+- Correctness results, case/seed counts, exact outputs and oracle provenance.
+- T/M/S/D with units, machine, source/executable/input hashes, compiler/flags,
+  raw samples and variability; distinguish measured, estimated and unknown axes.
+- E, K and clamped machine points using the actual scoring function, plus each
+  axis's pre-clamp point contribution and the break-even/target runtime.
+- Change to the best-three aggregate under explicit judge-score assumptions,
+  including whether the candidate actually enters the counting set.
+- Evidence supporting selection, remaining uncertainty and official run IDs
+  when available. Native evidence can select an Intel trial, not certify its K.
+
+Use the formula to reject implausible expensive ideas before implementation.
+Profile the intended architecture; inspect generated code before paying to
+remove a source-level abstraction that the compiler already eliminates. Apply
+Amdahl's law to phase targets: eliminating a phase consuming 10% of whole-process
+time can save at most 10%, and accelerating it less saves less. Profile setup,
+preprocessing, parsing, construction, queries and output as relevant.
+
+Start with small independent mechanisms: worker count, buffer capacity,
+representation, dispatch and redundant work. Retain competing sources until
+measurements establish a tradeoff. A candidate is safely dominated on machine
+axes only when another is no worse on every axis and better on at least one,
+with equivalent correctness and credible measurements. Rank experiments by
+expected improvement to final overall score per engineering effort, including
+validation and unseen-input failure risk; a theoretical speedup is insufficient.
+
+### Latest native selection, refresh before acting
+
+- Production B now matches archived `b-shortkeys-direct.rs`: exact 16-byte keys
+  for short tokens, full 32-byte keys for longer tokens, built directly from the
+  input queries. Two full-seed native batches matched verified reference outputs;
+  eight existing differential suites and two boundary suites passed, including
+  again from production. A long-token prefix mutation failed both boundary suites.
+- Independent repeat medians on seeds 1 / 42 were 169.935 -> 165.673 ms and
+  173.914 -> 167.021 ms. The candidate was faster in 39/44 pairs across both
+  batches. Timing spread is material; Mac footprint is not official M. Estimated
+  S541 -> S566 needs 1.35% less runtime at equal official memory. This is a local
+  selection for an Intel trial, with no official score gain established.
+- C classifier specialization has now been implemented and rejected. Native ARM
+  and Haswell code generation already specializes the baseline; the source-level
+  function pointer does not establish native indirect-call overhead. Timings were
+  flat and source grew. Do not restart this as an untested next experiment.
+- D's radix queue with preserved tie ordering passed differential/queue checks
+  but lost about 9% on both native full seeds and used more footprint/source.
+  Production A/C/D remain unchanged. Prefer a new measured hypothesis over
+  repeating the same losing mechanisms.
+- Complete sources, raw samples, mutation evidence and scope are in the native
+  experiment README and track PERF.md files. No commit or Intel submission was
+  made for these working-tree changes. Preserve them and refresh git status/HEAD.
+
+## Historical handoff — 2026-10-31 at `322b9bb`
+
+The following records the earlier handoff. The latest native selection above
+supersedes its production status, runner limitations and proposed C experiment.
 
 - HEAD at this handoff: `322b9bb`. The direct-inline D graph experiment passed
   every official gate but lost: 249.672 → 296.114 ms, 109,588,480 → 130,162,688
