@@ -72,6 +72,12 @@ cargo fmt --manifest-path track-a/Cargo.toml --check
 cargo clippy --manifest-path track-a/Cargo.toml --offline --all-targets -- -D warnings
 ```
 
+The executable prints local T/M/S/D/K diagnostics to stderr at startup, every
+three seconds, and on completion. S and K are estimates; official scoring uses
+the harness measurements. Short release runs show just the start and final reports.
+Source size and manifest dependency metadata are embedded during the build, so
+the runtime image does not need the source files.
+
 The ten differential tests build the release executable and compare its complete
 output with the Python reference. They cover the spec's worked example, empty
 input, percentile rank rounding, repeated ranks and values, uint32 extremes,

@@ -1,3 +1,5 @@
+mod stats;
+
 use std::collections::HashMap;
 use std::env;
 use std::ffi::c_void;
@@ -20,6 +22,7 @@ unsafe extern "C" {
         offset: i64,
     ) -> *mut c_void;
     fn munmap(addr: *mut c_void, len: usize) -> i32;
+    #[cfg(target_os = "linux")]
     fn madvise(addr: *mut c_void, len: usize, advice: i32) -> i32;
 }
 
@@ -478,6 +481,7 @@ fn summarize(data: &Path, out: &Path) -> io::Result<()> {
 }
 
 fn main() -> io::Result<()> {
+    let _stats = stats::Reporter::start()?;
     let mut data = PathBuf::from("/data");
     let mut out = PathBuf::from("/out");
     let mut args = env::args_os().skip(1);
