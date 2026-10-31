@@ -6,39 +6,44 @@ defines directed shortest-path queries with nonnegative uint32 edge weights.
 ## Approach
 
 Map the graph read-only and split its edge lines among up to twelve parsing
-workers. Temporary edges use eight bytes when both node IDs and the weight fit
-in 21 bits; a tagged index preserves larger values in a full-width side list.
-Assign disjoint power-of-two node ranges to scoped construction workers. Each
-owner builds both its forward and reverse CSR fragments in two scans of the
-shared compact edges, reusing offsets as write cursors and restoring starts.
-At full scale twelve available threads produce seven ranges of at most 262,144
-nodes. All graph writes are private to an owner: no atomic scatter cursors,
-per-worker vertex histograms, global concatenation or duplicate edge-sized
-partition buffer. Query lookups select a fragment with a shift and mask.
-This deliberately trades repeated sequential reads for parallel random writes
-over smaller arrays. Its runtime benefit must be measured on the Intel board.
-Each ordinary adjacency entry occupies four bytes: 21 node bits, 10 weight
-bits, and a tag bit. Weights up to 1023 and nodes below 2^21 fit directly. A
-tagged entry indexes that direction's full-width exception vector, so larger
-weights and node IDs remain exact. Narrowing individual entries does not
-require every edge in the graph to fit.
-Both preserve parallel edges, duplicates, zero weights and self-loops. No node
-ordering, geometry, or input seed is assumed.
+workers. During parsing, route each edge into a forward bucket owned by its
+source node and a reverse bucket owned by its target node. Owners cover disjoint
+power-of-two node ranges; twelve available threads yield seven owners at full
+scale. Reverse buckets store the endpoints reversed, so both directions use the
+same construction code. Each temporary copy packs three 21-bit fields into a
+u64 when possible and uses an exact full-width exception otherwise. Initial
+bucket reservations are proportional to their owner's node count, with 10%
+headroom; a short final range therefore does not cause undersizing of every
+full range. Buckets still grow without a fixed-capacity correctness assumption.
 
-Up to twelve query workers share the graph and take queries from an atomic work
-counter. Each query uses bidirectional Dijkstra with uint64 distances and
-65-bucket monotone radix queues. Expand the smaller frontier, then stop when the
-sum of the two minimum queue distances cannot improve the best complete path.
-An empty forward adjacency at the source or reverse adjacency at the target
-immediately proves unreachability, except a same-node query always answers zero.
+Bucket lengths and wide-entry counts determine the final global CSR allocation.
+Safe mutable slice splitting gives each owner its own node-offset range, edge
+range and exception range in those final arrays. Each owner counts and scatters
+only its own routed edges; it consumes and frees each parser bucket immediately
+after scatter. No owner rescans the whole graph, and no fragment concatenation,
+atomic scatter or raw-pointer write is required. Offset cursors are restored
+within each owner range; the global final sentinel is set before workers start.
+The resulting graph is ordinary contiguous CSR, with the same query lookup as
+the earlier implementation. Each ordinary adjacency entry occupies four bytes:
+21 global node bits, ten weight bits and an exception tag. Exceptions retain full
+uint32 neighbors and weights. Zero weights, duplicate/parallel edges, self-loops
+and arbitrary input order remain exact.
 
-Reusable generation-tagged hash tables hold tentative distances. Each query
-increments a generation rather than clearing the table; full node equality
-resolves collisions and the table grows as needed. Full uint64 queue keys and
-distances preserve large weights and zero-weight ties. These search structures
-are inherited from the preceding candidate; this experiment changes construction.
-Results are stored by query index and written in input order. The graph mapping
-and temporary edge lists are released after the CSR fragments are built.
+This deliberately spends two compact temporary edge copies to enable parallel
+construction. The common temporary payload is 16*m bytes, plus bucket capacity
+slack and wide exceptions. Final ordinary CSR payload is 8*m + 8*(n+1) bytes for
+both directions. Capacity growth is unrestricted, so skew may raise the peak;
+these are allocation budgets, not measured cgroup memory.
+
+Up to twelve query workers share the graph and consume queries from an atomic
+counter. The search engine returns to the earlier binary heaps and sparse
+HashMap distances. Each query uses bidirectional Dijkstra with uint64 distances.
+Small queue entries pack distance and node into a u64; larger distances use a
+separate full-width heap. Expand the smaller frontier and stop when the sum of
+minimum distances cannot improve the best complete path. Empty source/target
+adjacency immediately proves unreachability, except same-node queries return 0.
+Results are stored by query index and written in input order. All temporary construction
+storage is released before search workers start.
 
 The only unsafe operations are Unix memory mapping and creating a read-only
 slice from the successful mapping. Scoped parsing workers finish before the
@@ -76,8 +81,8 @@ gaps, isolated nodes, and empty query files.
 
 Measure query-worker counts and CSR construction on the board. Consider graph
 relabeling to improve cache locality only if its preprocessing cost is repaid.
-Measure the retained radix queues and generation tables separately before
-attributing a construction result to query execution.
+Separate parsing, construction and query timings before attributing a combined
+result to any one component. Compare the full memory/source-adjusted score.
 
 ## Profile-guided experiment
 
@@ -104,5 +109,4 @@ too much in the recorded full-scale local trials.
 
 The compact-record A and predecessor-aware D trials at `330dbc3` passed the
 Intel correctness gates but lost machine points. Their sources and measurements
-are preserved outside the production folders; see [PERF.md](PERF.md). Production
-uses the preceding implementation.
+are preserved outside the production folders; see [PERF.md](PERF.md).

@@ -463,3 +463,87 @@ Source review and Rust formatting/whitespace checks passed. No Docker, local
 compilation, solution execution, tests or benchmarks were performed, following
 the current repository instruction. Official Intel build, correctness and
 performance are pending; public-data correctness will not prove holdout safety.
+
+
+### Completed Intel result for `2cea13f`
+
+`run-33b028b22671` passed every official gate with measured static axes:
+459.309 ms, 100,663,296 peak bytes, S495, D1,
+56.505507 machine points. Historical-best delta: -5.463950 points.
+Raw evidence is archived in
+[`intel-2cea13f.json`](../experiments/2026-10-30-query-machine/intel-2cea13f.json).
+The complete candidate remains in that experiment directory. The next shot
+uses the earlier better-scoring streaming/search structures as its base; no
+speedup over the historical best is claimed for this attempt. All verification
+was on the official Intel board; no local execution or tests were performed.
+
+
+## Parse-time radix routing into final CSR slices (2026-10-30)
+
+The user requested another unusually bold one-shot experiment after `2cea13f`.
+Replace the seven-owner repeated-whole-graph scans with parse-time source/target
+routing. Each parsing worker emits one compact forward copy into its source
+owner's bucket and one reverse copy into its target owner's bucket. Reverse
+copies reverse endpoints at parse time. Temporary values retain the previous
+three-21-bit packed representation with exact full-width exceptions; vector
+capacities grow when needed. Reserve proportional to each owner's actual node
+count with 10% headroom: uniform division by seven would predictably undersize
+the six full ranges because the final range is shorter, causing geometric
+capacity doubling. This capacity heuristic affects allocation only; arbitrary
+skew remains exact. Neither input ordering nor any seed is recognized.
+
+Bucket lengths and counts of wide final adjacency entries give exact global
+allocation sizes. Allocate the two final CSR graphs once. Safe `split_at_mut`
+views assign every owner disjoint offset, edge and exception slices, plus their
+global base indices. Each owner counts and scatters only the records routed to
+it; it consumes parser buckets and releases their capacity during scatter.
+No global rescans, atomic scatter, unsafe mutation, intermediate CSR fragments
+or concatenation copy remain. The finished query representation is ordinary
+contiguous CSR, with no owner lookup on the search path.
+
+Offset ownership excludes the final global sentinel: `offsets[n]` is set to the
+actual direction edge count before work starts. Owners turn degrees into global
+starts, use those entries as cursors, then rotate their own offset slice and set
+its first entry to their edge base. The next owner's first offset supplies the
+previous owner's end. This covers empty degree ranges, span-one owners and the
+last partial range. Wide counts use the same neighbor/weight predicate as final
+packing. The total exception length is checked below 2^31, so all preassigned
+exception indices fit below the tag bit. Both endpoints stay global and exact.
+
+Restore the previously selected sparse HashMap distance store and compact/wide
+binary heaps from the complete `d900c19` baseline preserved in
+`experiments/2026-10-30-bold/d-baseline.rs`. The generation-table/radix-queue
+combination had not beaten this engine. Consequently this submission combines
+construction and search selection; its result cannot isolate their individual
+contributions. Twelve parsing/query workers remain; construction spawns no more
+owners than available workers, since the owner span rounds up from n/workers.
+
+The common temporary payload is 16*m bytes, versus 8*m before routing. At full
+scale this is 80 MB of used entries; proportional reservations with headroom
+budget roughly 90 MB before further growth. Final CSR contributes about 54 MB plus
+wide exceptions. All final arrays are allocated while buckets still exist.
+Geometric bucket growth, parser imbalance, allocation metadata and exceptions
+can raise this peak substantially; 145–180 MB is an illustrative budget, not a
+measurement or bound. Demand paging and per-owner release can make actual
+resident overlap lower than total vector capacity; allocator retention can keep
+freed pages charged. Input mappings are released after parsing, before CSR
+construction. Exact bucket sizing would need another scan and is not added.
+
+Immediate official baseline: `2cea13f`, `run-33b028b22671`, 459.309 ms,
+100,663,296 bytes, S495, D1, 56.505507 points. Historical best:
+`aa708b6`, `run-e4950b1f6c67`, 309.870 ms, 96,964,608 bytes, S361,
+61.969457 points. The formatted nonblank/noncomment delta estimates S457;
+canonical static measurement remains pending. At a hypothetical 145 MB peak,
+full-score break-even against the historical best is approximately 245.8 ms;
+at 180 MB it is approximately 225.4 ms. Aim for a large runtime reduction rather
+than treating memory growth as free.
+
+Complete current baseline and candidate sources are preserved outside production
+in `experiments/2026-10-30-next-shot/d-baseline.rs` and `d-candidate.rs`.
+Source review covered routing coverage, source reversal, owner/thread bounds,
+zero/duplicate/self-loop/wide edges, exact counts and tag indices, global CSR
+boundaries, private-slice lifetimes and mapping release. Rust formatting and
+whitespace checks passed. Per repository instruction, no Docker, local
+compilation, solver execution, tests or benchmarks were run. Official build,
+correctness and performance remain pending; source review cannot establish
+holdout correctness.

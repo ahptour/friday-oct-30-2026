@@ -345,3 +345,70 @@ Source review and Rust formatting/whitespace checks passed. No Docker, local
 compilation, solution execution, tests or benchmarks were performed, following
 the current repository instruction. Official Intel build, correctness and
 performance are pending; public-data correctness will not prove holdout safety.
+
+
+### Completed Intel result for `2cea13f`
+
+`run-26af339e8a1a` passed every official gate with measured static axes:
+510.215 ms, 70,705,152 peak bytes, S642, D1,
+59.644913 machine points. Historical-best delta: -2.258015 points.
+Raw evidence is archived in
+[`intel-2cea13f.json`](../experiments/2026-10-30-query-machine/intel-2cea13f.json).
+The complete candidate remains in that experiment directory. The next shot
+uses the earlier better-scoring streaming/search structures as its base; no
+speedup over the historical best is claimed for this attempt. All verification
+was on the official Intel board; no local execution or tests were performed.
+
+
+## Compact lexical scan experiment (2026-10-30)
+
+The previous runtime phrase automaton passed all official gates but reached
+510.215 ms / 70,705,152 bytes / S642 / 59.644913 points at `2cea13f`
+(`run-26af339e8a1a`). That is below the historical streaming best of
+437.009 ms / 70,397,952 bytes / S541 / 61.902928 points
+(`run-4a9c515be486`). Return to the earlier 64-document Boolean and rare-anchor
+phrase execution plan, then replace its common lexical path rather than
+building another corpus index or phrase automaton.
+
+Freeze runtime query vocabulary into a compact table with eight-byte
+fingerprint/ID slots, separate exact keys and lengths, and at most 50% occupancy.
+The query-building hash map is dropped before parsing workers start. Corpus
+lookup loads the lowercase first word and, for long tokens, last word directly
+from bounded input bytes. Fingerprints reject mismatches cheaply; acceptance
+compares token length and every word, including interiors of 17–32-byte tokens.
+Collisions cannot produce false matches. Unknown terms retain a sentinel token
+position during phrase matching. No dataset-specific words or IDs are embedded.
+
+A worker caches 64-byte alphanumeric/newline masks from four bounded SSE2 loads.
+Bit scans enumerate tokens without repeatedly classifying 16 bytes per short
+word. Token runs span mask boundaries; newline masks stop at the exact document
+boundary. The final partial block has a scalar path, as do other architectures.
+ASCII lowercase is performed on token words with OR 0x20; digits are unchanged,
+all high bytes are separators, and masked suffix bytes never enter equality.
+There is no per-token padded buffer write or generic full-key hash on the corpus
+path. The table, scanner and exact token comparisons are new; Boolean
+associativity, clause deduplication, phrase anchors, output arithmetic and worker
+merging reuse the preceding streaming implementation.
+
+This combines a return to the better historical execution plan with a new
+lexical representation and block scanner. A measured gain would not isolate
+those contributions. The expected benefit is fewer repeated byte classifications,
+key writes and dictionary cache misses. Costs include a second query-time table
+construction, linear-probe chains and extra source. Neither throughput nor peak
+memory has been established locally or on the official board yet.
+
+Complete baseline/candidate source is archived in
+`experiments/2026-10-30-next-shot/` outside the production track folder. Source
+review covered complete exact comparison for lengths 1–32, same-head/tail
+collisions, digit tokens, uppercase, UTF-8 separators, absent terms, empty query
+vocabulary, tokens and line ends at every block boundary, partial final blocks,
+partial worker blocks, phrase sentinel positions, duplicate matches and stable
+output ordering. Formatting and whitespace checks passed. Per instruction no
+Docker, compilation, solver execution, local tests or benchmarks were run.
+Official build/correctness/performance are pending; source review does not
+establish holdout correctness.
+
+The formatted nonblank/noncomment source delta is +25 lines versus `2cea13f`,
+estimating S667 until the official static-axis pass. At the historical best's
+unchanged memory, beating its full score requires approximately 410.4 ms.
+This is the measurement threshold, not a predicted runtime.

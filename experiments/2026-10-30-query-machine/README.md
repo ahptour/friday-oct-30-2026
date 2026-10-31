@@ -82,3 +82,27 @@ no Docker, local compilation, solution execution, tests or runtime benchmarks
 were performed. Official build, correctness and performance are pending; source
 review cannot establish holdout correctness. Compare full measured scores,
 not time alone, and retain the complete failed candidate if either track loses.
+
+
+## Completed official result
+
+The official response generated 2026-10-31T04:15:08Z is preserved in
+`intel-2cea13f.json`. All four tracks passed check, build, correctness, timeout
+and sandbox gates, with measured static axes. A and C source were unchanged.
+
+| Track | Run | Time ms | Peak bytes | S | Points | Delta vs historical best |
+|---|---|---:|---:|---:|---:|---:|
+| B | run-26af339e8a1a | 510.215 | 70,705,152 | 642 | 59.644913 | -2.258015 |
+| D | run-33b028b22671 | 459.309 | 100,663,296 | 495 | 56.505507 | -5.463950 |
+
+B reduced measured memory from 177,463,296 to 70,705,152 bytes and gained
+3.477311 points over the immediately preceding adaptive-index implementation.
+Its 510.215 ms time did not improve, and it remains 2.258015 points behind the
+earlier streaming implementation. D became 21.1% slower than its preceding
+379.135 ms repeat and lost 2.486408 points; it is 5.463950 points behind its
+historical best. One public-data run is not a holdout proof or a repeatability
+study. These data do not establish a dramatic efficiency improvement.
+
+The next experiment starts B and D from the earlier streaming/search structures
+with better measured scores, retaining this complete attempt for inspection.
+Its implementation and comparison are under `../2026-10-30-next-shot/`.

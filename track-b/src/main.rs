@@ -109,24 +109,19 @@ struct Clause {
 }
 fn anchors(
     input: &[u8],
-    dictionary: &Table<[u8; 32], usize>,
+    dictionary: &Lexicon,
     queries: &[Query],
-) -> (Vec<Vec<usize>>, Vec<Clause>) {
-    let mut frequencies = vec![0u32; dictionary.len()];
-    let mut seen = vec![u32::MAX; dictionary.len()];
+) -> (Vec<Vec<usize>>, Vec<Clause>, Vec<u32>) {
+    let mut frequencies = vec![0u32; dictionary.keys.len()];
+    let mut seen = vec![u32::MAX; dictionary.keys.len()];
     for (doc, line) in input.split(|&b| b == b'\n').take(1000).enumerate() {
         let Some(tab) = line.iter().position(|&b| b == b'\t') else {
             continue;
         };
-        for word in line[tab + 1..]
-            .split(|b| !b.is_ascii_alphanumeric())
-            .filter(|w| !w.is_empty())
-        {
-            let mut key = [0; 32];
-            for (dst, &byte) in key.iter_mut().zip(word) {
-                *dst = byte.to_ascii_lowercase();
-            }
-            if let Some(&term) = dictionary.get(&key)
+        let mut pos = tab + 1;
+        let mut tokens = Tokens::new(line);
+        while let Some((start, end)) = tokens.next(&mut pos) {
+            if let Some(term) = dictionary.get(line, start, end)
                 && seen[term] != doc as u32
             {
                 seen[term] = doc as u32;
@@ -134,7 +129,7 @@ fn anchors(
             }
         }
     }
-    let mut anchors = vec![Vec::new(); dictionary.len()];
+    let mut anchors = vec![Vec::new(); dictionary.keys.len()];
     let mut all = Vec::new();
     for (mask, (id, query)) in queries
         .iter()
@@ -181,7 +176,7 @@ fn anchors(
             });
         }
     }
-    (anchors, all)
+    (anchors, all, frequencies)
 }
 
 #[derive(Clone, Default)]
@@ -283,198 +278,204 @@ fn flush(
     }
 }
 
-fn read_token(input: &[u8], pos: &mut usize, token: &mut [u8; 32]) -> usize {
-    let mut length = 0;
-    #[cfg(target_arch = "x86_64")]
-    while *pos + 16 <= input.len() && length < 32 {
-        use std::arch::x86_64::*;
-        // x86-64 guarantees SSE2. Bounds above cover the entire unaligned load.
-        let count = unsafe {
-            let raw = _mm_loadu_si128(input.as_ptr().add(*pos).cast());
-            let lower = _mm_or_si128(raw, _mm_set1_epi8(0x20));
-            let digits = _mm_and_si128(
-                _mm_cmpgt_epi8(raw, _mm_set1_epi8(b'/' as i8)),
-                _mm_cmpgt_epi8(_mm_set1_epi8(b':' as i8), raw),
-            );
-            let letters = _mm_and_si128(
-                _mm_cmpgt_epi8(lower, _mm_set1_epi8(b'`' as i8)),
-                _mm_cmpgt_epi8(_mm_set1_epi8(b'{' as i8), lower),
-            );
-            let count =
-                (_mm_movemask_epi8(_mm_or_si128(digits, letters)) as u32).trailing_ones() as usize;
-            let mask = _mm_cmpgt_epi8(
-                _mm_set1_epi8(count as i8),
-                _mm_set_epi8(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0),
-            );
-            _mm_storeu_si128(
-                token.as_mut_ptr().add(length).cast(),
-                _mm_and_si128(lower, mask),
-            );
-            count
-        };
-        length += count;
-        *pos += count;
-        if count != 16 {
-            return length;
-        }
-    }
-    while *pos < input.len() && input[*pos].is_ascii_alphanumeric() {
-        token[length] = input[*pos].to_ascii_lowercase();
-        length += 1;
-        *pos += 1;
-    }
-    length
+struct Tokens<'a> {
+    input: &'a [u8],
+    base: usize,
+    alnum: u64,
+    newlines: u64,
 }
-// Compile every phrase into one immutable Aho-Corasick machine over exact
-// query token IDs. Root transitions are direct-indexed; only nonroot arcs hash.
-const NONE: u32 = u32::MAX;
-struct State {
-    failure: u32,
-    output: u32,
-    terminal: u32,
-}
-impl State {
-    fn new() -> Self {
+impl<'a> Tokens<'a> {
+    fn new(input: &'a [u8]) -> Self {
         Self {
-            failure: 0,
-            output: 0,
-            terminal: NONE,
+            input,
+            base: usize::MAX,
+            alnum: 0,
+            newlines: 0,
         }
     }
-}
-struct Emission {
-    query: usize,
-    next: u32,
-}
-struct Phrases {
-    roots: Vec<u32>,
-    edges: Table<u64, u32>,
-    states: Vec<State>,
-    emissions: Vec<Emission>,
-}
-impl Phrases {
-    fn new(queries: &[Query], vocabulary: usize) -> Self {
-        let mut machine = Self {
-            roots: vec![0; vocabulary],
-            edges: Table::default(),
-            states: vec![State::new()],
-            emissions: Vec::new(),
-        };
-        // Outgoing lists exist only while constructing failure links. The
-        // runtime graph retains one arc table, not a full alphabet per state.
-        let mut children = vec![Vec::<(usize, u32)>::new()];
-        for (query, phrase) in queries.iter().enumerate() {
-            if phrase.phrase == usize::MAX {
-                continue;
-            }
-            let mut state = 0;
-            for &term in &phrase.terms {
-                let existing = if state == 0 {
-                    machine.roots[term]
-                } else {
-                    machine
-                        .edges
-                        .get(&Self::key(state, term))
-                        .copied()
-                        .unwrap_or(0)
-                };
-                state = if existing != 0 {
-                    existing
-                } else {
-                    let next = u32::try_from(machine.states.len()).expect("phrase state count");
-                    machine.states.push(State::new());
-                    children.push(Vec::new());
-                    children[state as usize].push((term, next));
-                    if state == 0 {
-                        machine.roots[term] = next;
-                    } else {
-                        machine.edges.insert(Self::key(state, term), next);
-                    }
-                    next
-                };
-            }
-            // Identical phrases share states, but keep every original output
-            // line. Neither a hash nor a fingerprint decides token equality.
-            let terminal = &mut machine.states[state as usize].terminal;
-            let emission = u32::try_from(machine.emissions.len()).expect("phrase count");
-            machine.emissions.push(Emission {
-                query,
-                next: *terminal,
-            });
-            *terminal = emission;
+    fn at(&mut self, pos: usize) -> usize {
+        let base = pos & !63;
+        if self.base != base {
+            self.base = base;
+            self.alnum = 0;
+            self.newlines = 0;
+            self.load();
         }
-        let mut queue: Vec<u32> = children[0].iter().map(|&(_, state)| state).collect();
-        let mut cursor = 0;
-        while cursor < queue.len() {
-            let state = queue[cursor];
-            cursor += 1;
-            for &(term, child) in &children[state as usize] {
-                let suffix = machine.advance(machine.states[state as usize].failure, term);
-                machine.states[child as usize].failure = suffix;
-                machine.states[child as usize].output =
-                    if machine.states[suffix as usize].terminal != NONE {
-                        suffix
-                    } else {
-                        machine.states[suffix as usize].output
-                    };
-                queue.push(child);
+        pos - base
+    }
+    fn load(&mut self) {
+        #[cfg(target_arch = "x86_64")]
+        if self.base + 64 <= self.input.len() {
+            use std::arch::x86_64::*;
+            // Four bounded SSE2 loads classify a block once, regardless of
+            // how many tokens it contains. High UTF-8 bytes are separators.
+            for lane in 0..4 {
+                unsafe {
+                    let raw =
+                        _mm_loadu_si128(self.input.as_ptr().add(self.base + lane * 16).cast());
+                    let lower = _mm_or_si128(raw, _mm_set1_epi8(0x20));
+                    let digits = _mm_and_si128(
+                        _mm_cmpgt_epi8(raw, _mm_set1_epi8(b'/' as i8)),
+                        _mm_cmpgt_epi8(_mm_set1_epi8(b':' as i8), raw),
+                    );
+                    let letters = _mm_and_si128(
+                        _mm_cmpgt_epi8(lower, _mm_set1_epi8(b'`' as i8)),
+                        _mm_cmpgt_epi8(_mm_set1_epi8(b'{' as i8), lower),
+                    );
+                    self.alnum |=
+                        (_mm_movemask_epi8(_mm_or_si128(digits, letters)) as u64) << (lane * 16);
+                    self.newlines |=
+                        (_mm_movemask_epi8(_mm_cmpeq_epi8(raw, _mm_set1_epi8(b'\n' as i8))) as u64)
+                            << (lane * 16);
+                }
             }
+            return;
         }
-        machine
+        for (i, &byte) in self.input[self.base..].iter().take(64).enumerate() {
+            self.alnum |= u64::from(byte.is_ascii_alphanumeric()) << i;
+            self.newlines |= u64::from(byte == b'\n') << i;
+        }
     }
-    fn key(state: u32, term: usize) -> u64 {
-        (u64::from(state) << 32) | u64::from(u32::try_from(term).expect("query vocabulary"))
-    }
-    fn advance(&self, mut state: u32, term: usize) -> u32 {
-        while state != 0 {
-            if let Some(&next) = self.edges.get(&Self::key(state, term)) {
-                return next;
+    fn next(&mut self, pos: &mut usize) -> Option<(usize, usize)> {
+        loop {
+            if *pos == self.input.len() {
+                return None;
             }
-            state = self.states[state as usize].failure;
-        }
-        self.roots[term]
-    }
-    fn report(&self, state: u32, doc: u32, reported: &mut [u32], results: &mut Partial) {
-        let mut terminal = if self.states[state as usize].terminal != NONE {
-            state
-        } else {
-            self.states[state as usize].output
-        };
-        while terminal != 0 {
-            let mut emission = self.states[terminal as usize].terminal;
-            if reported[emission as usize] == doc {
+            let offset = self.at(*pos);
+            let available = (self.input.len() - *pos).min(64 - offset);
+            let start = (self.alnum >> offset).trailing_zeros() as usize;
+            let newline = (self.newlines >> offset).trailing_zeros() as usize;
+            if newline < available && newline < start {
+                *pos += newline;
+                return None;
+            }
+            if start < available {
+                *pos += start;
                 break;
             }
-            // A terminal and all its terminal suffixes are emitted together.
-            // Its first emission indexes the stamp; no per-state stamps needed.
-            reported[emission as usize] = doc;
-            while emission != NONE {
-                let entry = &self.emissions[emission as usize];
-                results.add(entry.query, doc);
-                emission = entry.next;
+            *pos += available;
+        }
+        let start = *pos;
+        loop {
+            let offset = self.at(*pos);
+            let available = (self.input.len() - *pos).min(64 - offset);
+            let count = ((self.alnum >> offset).trailing_ones() as usize).min(available);
+            *pos += count;
+            if count < available || *pos == self.input.len() {
+                return Some((start, *pos));
             }
-            terminal = self.states[terminal as usize].output;
         }
     }
 }
+fn lower_word(input: &[u8], start: usize, count: usize) -> u64 {
+    let word = if start + 8 <= input.len() {
+        u64::from_le_bytes(input[start..start + 8].try_into().unwrap())
+    } else {
+        let mut word = 0;
+        for (i, &byte) in input[start..start + count].iter().enumerate() {
+            word |= u64::from(byte) << (i * 8);
+        }
+        word
+    };
+    // Called only on alphanumeric token bytes: OR 0x20 lowercases letters and
+    // leaves digits alone. Mask any separators read beyond a short token.
+    (word | 0x2020202020202020) & (u64::MAX >> ((8 - count) * 8))
+}
+struct Lexicon {
+    slots: Vec<u64>,
+    keys: Vec<[u8; 32]>,
+    lengths: Vec<u8>,
+}
+impl Lexicon {
+    fn hash(head: u64, tail: u64, len: usize) -> u64 {
+        let h =
+            (head ^ tail.rotate_left(27) ^ ((len as u64) << 56)).wrapping_mul(0x517cc1b727220a95);
+        h ^ (h >> 32)
+    }
+    fn new(dictionary: &Table<[u8; 32], usize>) -> Self {
+        let mut result = Self {
+            slots: vec![0; (dictionary.len() * 2).next_power_of_two().max(1)],
+            keys: vec![[0; 32]; dictionary.len()],
+            lengths: vec![0; dictionary.len()],
+        };
+        for (&key, &id) in dictionary {
+            let len = key.iter().position(|&b| b == 0).unwrap_or(32);
+            let head = lower_word(&key, 0, len.min(8));
+            let tail = if len > 8 {
+                lower_word(&key, len - 8, 8)
+            } else {
+                0
+            };
+            let hash = Self::hash(head, tail, len);
+            let mut slot = hash as usize & (result.slots.len() - 1);
+            while result.slots[slot] != 0 {
+                slot = (slot + 1) & (result.slots.len() - 1);
+            }
+            result.slots[slot] = (hash & 0xffffffff00000000)
+                | u64::from(u32::try_from(id + 1).expect("query vocabulary"));
+            result.keys[id] = key;
+            result.lengths[id] = len as u8;
+        }
+        result
+    }
+    fn get(&self, input: &[u8], start: usize, end: usize) -> Option<usize> {
+        let len = end - start;
+        if len == 0 || len > 32 {
+            return None;
+        }
+        let head = lower_word(input, start, len.min(8));
+        let tail = if len > 8 {
+            lower_word(input, end - 8, 8)
+        } else {
+            0
+        };
+        let hash = Self::hash(head, tail, len);
+        let mut slot = hash as usize & (self.slots.len() - 1);
+        loop {
+            let entry = self.slots[slot];
+            if entry == 0 {
+                return None;
+            }
+            if entry >> 32 == hash >> 32 {
+                let id = (entry as u32 - 1) as usize;
+                let key = &self.keys[id];
+                if self.lengths[id] as usize == len
+                    && lower_word(key, 0, len.min(8)) == head
+                    && (len <= 8 || lower_word(key, len - 8, 8) == tail)
+                    && (8..len.saturating_sub(8)).step_by(8).all(|offset| {
+                        lower_word(input, start + offset, 8) == lower_word(key, offset, 8)
+                    })
+                {
+                    return Some(id);
+                }
+            }
+            slot = (slot + 1) & (self.slots.len() - 1);
+        }
+    }
+}
+
 fn parse(
     input: &[u8],
-    dictionary: &Table<[u8; 32], usize>,
+    dictionary: &Lexicon,
     anchors: &[Vec<usize>],
     queries: &[Query],
     clauses: &[Clause],
-    phrases: &Phrases,
+    checks: &[Vec<(usize, usize)>],
 ) -> Partial {
     let mut results = Partial::new(queries.len());
-    let mut reported = vec![u32::MAX; phrases.emissions.len()];
-    let mut bits = vec![0u64; dictionary.len()];
-    let mut query_bits = vec![0u64; queries.iter().filter(|q| q.phrase == usize::MAX).count()];
     let mut touched_terms = Vec::new();
+    let phrases = queries.iter().filter(|q| q.phrase != usize::MAX).count();
+    let mut matched = vec![u32::MAX; phrases];
+    let mut bits = vec![0u64; dictionary.keys.len()];
+    let mut query_bits = vec![0u64; queries.len() - phrases];
     let mut touched = Vec::new();
-    let mut candidates = Vec::new();
     let mut base = 0;
+    let mut candidates = Vec::new();
+
+    let mut tokens = Vec::new();
+    let mut phrase_candidates = Vec::new();
     let mut pos = 0;
-    let mut token = [0u8; 32];
+    let mut scanner = Tokens::new(input);
     while pos < input.len() {
         let mut doc = 0u32;
         while input[pos] != b'\t' {
@@ -497,26 +498,32 @@ fn parse(
             candidates.clear();
             base = block;
         }
-        // Document boundaries and unknown tokens reset the machine; separators
-        // do not. Unknown words still occupy a position and break adjacency.
-        let mut state = 0;
-        while input[pos] != b'\n' {
-            if !input[pos].is_ascii_alphanumeric() {
-                pos += 1;
-                continue;
-            }
-            token.fill(0);
-            read_token(input, &mut pos, &mut token);
-            if let Some(&term) = dictionary.get(&token) {
+        tokens.clear();
+        phrase_candidates.clear();
+        while let Some((start, end)) = scanner.next(&mut pos) {
+            let term = dictionary.get(input, start, end).unwrap_or(usize::MAX);
+            tokens.push(term);
+            if term != usize::MAX {
                 if bits[term] == 0 {
                     touched_terms.push(term);
                     candidates.extend_from_slice(&anchors[term]);
                 }
                 bits[term] |= 1u64 << (doc - base);
-                state = phrases.advance(state, term);
-                phrases.report(state, doc, &mut reported, &mut results);
-            } else {
-                state = 0;
+                for &(id, anchor) in &checks[term] {
+                    if tokens.len() > anchor {
+                        phrase_candidates.push((id, tokens.len() - 1 - anchor));
+                    }
+                }
+            }
+        }
+        for &(id, start) in &phrase_candidates {
+            let query = &queries[id];
+            let terms = &query.terms;
+            if matched[query.phrase] != doc
+                && tokens.get(start..start + terms.len()) == Some(terms.as_slice())
+            {
+                matched[query.phrase] = doc;
+                results.add(id, doc);
             }
         }
         pos += 1;
@@ -577,10 +584,23 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
         }
         queries.push(query);
     }
+    let lexicon = Lexicon::new(&dictionary);
+    drop(dictionary);
+    let dictionary = lexicon;
     let mapping = Mapping::open(&data.join("docs.txt"))?;
     let input = mapping.bytes();
-    let (anchors, clauses) = anchors(input, &dictionary, &queries);
-    let phrases = Phrases::new(&queries, dictionary.len());
+    let (anchors, clauses, frequencies) = anchors(input, &dictionary, &queries);
+    let mut checks = vec![Vec::new(); dictionary.keys.len()];
+    for (id, query) in queries
+        .iter()
+        .enumerate()
+        .filter(|(_, q)| q.phrase != usize::MAX)
+    {
+        let anchor = (0..query.terms.len())
+            .min_by_key(|&i| frequencies[query.terms[i]])
+            .unwrap();
+        checks[query.terms[anchor]].push((id, anchor));
+    }
     let workers = thread::available_parallelism()
         .map_or(1, usize::from)
         .min(12)
@@ -598,9 +618,9 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
             let queries = &queries;
             let anchors = &anchors;
             let clauses = &clauses;
-            let phrases = &phrases;
+            let checks = &checks;
             jobs.push(
-                scope.spawn(move || parse(chunk, dictionary, anchors, queries, clauses, phrases)),
+                scope.spawn(move || parse(chunk, dictionary, anchors, queries, clauses, checks)),
             );
             start = end;
         }

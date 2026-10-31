@@ -370,3 +370,59 @@ Complete baseline/candidate source files are in
 source review completed. Per user instruction, no local compilation, Docker,
 solver execution, tests or runtime benchmarks were performed. Official Intel
 build/correctness/performance gates remain pending.
+
+
+## Dedicated name owners and bounded producer pipeline (2026-10-30)
+
+Replace mutex-shard handoff with two concurrent stages: six CSV producers and
+six dedicated name owners on the twelve scoring threads. Each producer retains
+numeric and decoded-length aggregates, hashes each name and routes descriptors
+into 32 shard-specific batches of 512 records. Shard `s` belongs to owner
+`s % owners`; within that owner its table index is `s / owners`. The table never
+moves between threads. Standard-library bounded channels transfer owned vectors
+without copying their name payloads. Each channel admits at most two waiting
+batches. Owners retain the selected exact compact-key/head/membership tables,
+32-probe bound and byte-keyed overflow maps, with the same total table capacity.
+
+Distinct credits now belong to owner-local country counters and are reduced
+separately from numeric aggregates. Identical encoded names deterministically
+select the same shard; full equality still resolves every fingerprint/hash
+collision. Canonical CSV escaping preserves decoded equality and normalizes
+both empty forms. Table overflow, arbitrarily long names and mappings outside
+the compact range retain the preceding exact fallbacks.
+
+All owners start before producers. Each producer owns a complete sender set;
+its final partial batches are sent before that set drops. The coordinator drops
+its original senders before joining producers, and joins owners only after
+producers. Receivers drain queued batches before reporting disconnection. There
+is no channel cycle or consumer waiting for a producer result. With one available
+CPU a single producer/owner pair still progresses through OS scheduling. At full
+scale twelve active workers includes both stages, not twelve parsers plus owners.
+
+On x86_64 a descriptor is 32 bytes. Six producers' 32 batches of capacity 512
+occupy 3,145,728 payload bytes. Twelve queued batches add 196,608 bytes; six
+currently processed batches add 98,304; up to six sends can hold another 98,304
+while blocked. This is a bounded descriptor payload of 3,538,944 bytes, excluding
+metadata, allocator retention and thread stacks. It replaces 786,432 bytes of
+pending records in the preceding design. The common-table payload remains
+8,388,608 bytes; exact overflow allocations remain data-dependent. Batches are
+allocated by producers and released by owners, so cross-thread allocator cost
+and retained allocator capacity are risks alongside reducing parser workers.
+
+Baseline: `2cea13f`, `run-8184b81202bd`, all gates passed,
+52.975 ms, 14,024,704 bytes, S540, D1, 69.831060 points. Historical best from the
+same preceding C implementation: `92dcd11`, `run-eeb4537bf4a6`, 52.836 ms,
+13,201,408 bytes, S540, 70.122320 points. The formatted noncomment source delta is
++19 lines, estimating S559 before the official static-axis pass. At unchanged
+historical-best memory this needs about 52.3 ms to break even; greater peak memory
+requires a further time reduction. No improvement is claimed before measurement.
+
+Complete pre-change and candidate source files are
+`experiments/2026-10-30-next-shot/c-baseline.rs` and `c-candidate.rs`, outside the
+production track. Formatting and whitespace checks passed. Source review covered
+owner/shard indexing, exact identity and overflow, distinct-credit reduction,
+all partial-batch paths, bounded queues, sender lifetimes, normal disconnection,
+header-only and single-CPU behavior, and mapping lifetime. No Docker, local
+compilation, solver execution, tests or benchmarks were run. Official Intel
+build, correctness and performance remain pending; public-data success would
+not establish final holdout correctness.
