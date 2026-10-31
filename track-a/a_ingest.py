@@ -13,12 +13,18 @@ every list at the end.
 """
 import argparse
 import os
+import resource
 import sys
+import threading
+import time
+import tomllib
 from datetime import datetime
+from pathlib import Path
 
 INPUT_NAME = "requests.log"
 OUTPUT_NAME = "summary.txt"
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%f%z"   # RFC 3339; %z reads the trailing Z as UTC
+STATS_INTERVAL = 3.0
 
 
 def percentile(sorted_values, p):
@@ -29,6 +35,61 @@ def percentile(sorted_values, p):
 
 
 def main(data_dir, out_dir):
+    started = time.monotonic()
+    track_dir = Path(__file__).resolve().parent
+    with (track_dir / ".speed-demon.toml").open("rb") as manifest:
+        dependency_weight = 1 + tomllib.load(manifest)["dependency_count"]
+    # A local estimate only; the harness counts formatted source with scc.
+    source_lines = sum(
+        bool(line.strip()) and not line.lstrip().startswith("#")
+        for path in track_dir.rglob("*")
+        if path.suffix == ".py" or path.name == "Dockerfile"
+        for line in path.read_text(encoding="utf-8").splitlines()
+    )
+    stopped = threading.Event()
+
+    def report(state):
+        elapsed = time.monotonic() - started
+        peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        peak_mb = peak / 1_000_000 if sys.platform == "darwin" else peak * 1024 / 1_000_000
+        coefficient = (
+            (32.05 / max(elapsed, 1e-9)) ** 0.50
+            * min(228 / max(peak_mb, 1e-9), 50) ** 0.20
+            * min(56 / max(source_lines, 1), 1) ** 0.15
+            * min(1 / dependency_weight, 1) ** 0.15
+        )
+        print(
+            f"[stats {state}] T={elapsed:.2f} s "
+            f"M={peak_mb:.2f} MB S~{source_lines} lines D={dependency_weight} "
+            f"K~{coefficient:.3f}",
+            file=sys.stderr, flush=True,
+        )
+
+    def report_periodically():
+        while not stopped.wait(STATS_INTERVAL):
+            report("running")
+
+    print(
+        "[stats] Local diagnostics: T=elapsed; M=process peak RSS; "
+        "S=nonblank/noncomment Python + Dockerfile lines before formatting/scc; "
+        "D=1 + manifest runtime dependencies. Official T/M/S are measured by the harness. "
+        "K uses these local estimates and is provisional while running.\n"
+        "[stats] References (weight, ratio cap): T=32.05 s (0.50, none); "
+        "M=228 MB (0.20, 50x); S=56 lines (0.15, 1x); D=1 (0.15, 1x).",
+        file=sys.stderr, flush=True,
+    )
+    report("start")
+    reporter = threading.Thread(target=report_periodically, daemon=True)
+    reporter.start()
+    try:
+        ingest(data_dir, out_dir)
+    finally:
+        stopped.set()
+        reporter.join()
+        report("final")
+
+
+def ingest(data_dir, out_dir):
     latencies = {}   # (hour, endpoint) -> list of latency_us, in input order
     errors = {}      # (hour, endpoint) -> number of 5xx responses
 
