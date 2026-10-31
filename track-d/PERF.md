@@ -669,3 +669,32 @@ An isolated node-ID mutation made that oracle fail. Complete sources and every
 run are `d-radix-*` under
 [`2026-10-31-native-first`](../experiments/2026-10-31-native-first/).
 These are native Apple M4 Max observations, not Intel or holdout evidence.
+
+
+## Bound-based relaxation pruning (2026-10-31; rejected)
+
+Apply the skip-discarded-work idea from the 0xicbor review: before a distance
+map lookup or heap insertion, skip a relaxation whose candidate distance is at
+least the known complete path cost. Nonnegative weights make this exact, but
+its value depends on how often that condition occurs.
+
+Ten serial randomized native exec-to-exit timings per variant on full seeds
+1 / 42 gave baseline -> candidate medians **76.765 -> 78.212 ms** and
+**77.465 -> 78.982 ms**. Candidate was faster in only 3/20 pairs. Separate Mac
+peak-footprint maxima were 146,326,008 / 148,013,560 bytes versus baseline
+145,654,264 / 148,242,936 bytes; these are not official cgroup memory. Estimated
+S457 -> S460 needs about 0.196% less time at equal official memory; instead
+time rose about 2%. Reject and leave production unchanged.
+
+Two instrumented runs per seed counted identical totals: only 4,153/20,972,155
+and 4,206/22,006,890 relaxations were pruned, about 0.02%. This limited
+opportunity is consistent with the added check losing; no hardware cost was
+isolated. All eleven existing Python-reference methods passed against the
+candidate. Every benchmark/diagnostic matched full saved reference bytes on
+seeds 1 and 42, not newly executed full-size reference runs or holdout proof.
+
+Complete baseline/candidate/diagnostic source, every timing, separate RSS and
+footprint measurements, executable/source/input hashes, compiler/flags and
+hypothetical scoring are in `d-prune-screen.json`, `repo-tricks-diagnostics.json`
+and the [experiment report](../experiments/2026-10-31-native-first/REPO-TRICKS.md).
+No commit or official submission was made.

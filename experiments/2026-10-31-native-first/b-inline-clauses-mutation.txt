@@ -1,0 +1,20 @@
+test_all_operator_orders_and_sampled_rare_terms (test_b_mutation.TrackBTest.test_all_operator_orders_and_sampled_rare_terms) ... FAIL
+
+======================================================================
+FAIL: test_all_operator_orders_and_sampled_rare_terms (test_b_mutation.TrackBTest.test_all_operator_orders_and_sampled_rare_terms)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/aa/friday-oct-30-2026/tests/test_track_b.py", line 77, in test_all_operator_orders_and_sampled_rare_terms
+    self.check(docs, queries)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/aa/friday-oct-30-2026/tests/test_track_b.py", line 36, in check
+    self.assertEqual((base / 'rust/results.txt').read_bytes(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     (base / 'reference/results.txt').read_bytes())
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: b'1 1 1\n8 232 1 9 17 25 33 41 49 57\n33 1521[13920 chars] 0\n' != b'1 63 63\n8 280 7 15 23 31 39 47 55 63\n33 1[13938 chars] 0\n'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.163s
+
+FAILED (failures=1)

@@ -1,0 +1,43 @@
+{
+  "recorded_utc": "2026-10-31T05:16:22.506926+00:00",
+  "source_sha256": "bb3ea516c84932fa3fe06e32e56668abff7b256d0092e7d8b7ecfbec251888da",
+  "executable_sha256": "1f7138ad6664c0bea2706216aaee96f405fd052ffab7f149d21d0065420cad3d",
+  "compiler": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: aarch64-apple-darwin\nrelease: 1.98.1\nLLVM version: 22.1.8\n",
+  "oracle": "previously verified reference bytes, not a fresh full-reference run",
+  "runs": [
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_track_b.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "log": "experiments/2026-10-31-native-first/b-inline-production-checks-0.txt"
+    },
+    {
+      "command": [
+        "python3",
+        "experiments/2026-10-31-native-first/test_b_shortkeys.py",
+        "track-b/target/release/solution"
+      ],
+      "exit_code": 0,
+      "log": "experiments/2026-10-31-native-first/b-inline-production-checks-1.txt"
+    },
+    {
+      "seed": 1,
+      "exact_output_match": true,
+      "output_sha256": "f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927"
+    },
+    {
+      "seed": 42,
+      "exact_output_match": true,
+      "output_sha256": "f853a72cd18c2535183170a22482f363a251ac88fec1ed419791e1572dbfdffd"
+    }
+  ]
+}

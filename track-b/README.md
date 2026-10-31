@@ -19,7 +19,9 @@ clauses and selecting a positive anchor for each remaining clause.
 Map the corpus read-only and partition it at document boundaries among up to
 12 workers. Boolean evaluation operates on blocks of 64 document IDs. Each
 requested term holds a 64-bit presence mask; an anchor schedules its clauses
-once per block. Bitwise intersections and differences evaluate clauses, and
+once per block. Each clause keeps up to five remaining operands inline as
+uint32 term IDs with a polarity bit, keeping the hot operands in the clause
+record. Bitwise intersections and differences evaluate clauses, and
 unions combine them into query masks. Counts use population counts, ID sums use
 weighted population counts, and only the first ten IDs need enumeration. Clear
 only masks touched in the completed block; no full corpus index is retained.
@@ -76,8 +78,10 @@ The lexical scanner experiment at `196b0c0` passed every Intel gate but lost
 2.017703 points against this earlier streaming implementation. The complete
 experiment remains archived outside the production folder; see PERF.md.
 The execution plan and native build configuration remain those of `3b74c52`.
-The short-key dictionary is now selected after two native comparison batches on
-full seeds 1 and 42, eight existing differential suites, two targeted boundary
-suites, a successful mutation check, Clippy, and Haswell code generation. This
-local selection has no official Intel measurement yet; see PERF.md for scope
-and raw evidence.
+The short-key dictionary subsequently passed every Intel gate at `1b85287`:
+441.470 ms, 67,166,208 bytes, S566, D1, 61.849606 machine points. Inline Boolean
+clause operands are now selected after two further native batches on full seeds
+1 and 42, differential/boundary suites, a polarity mutation check, Clippy and
+Haswell code generation. This additional change has no official Intel result
+and does not establish an overall contest gain; see PERF.md and the
+[complete experiment report](../experiments/2026-10-31-native-first/REPO-TRICKS.md).

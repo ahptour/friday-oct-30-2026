@@ -1,0 +1,14 @@
+testing b-unmatched
+test_all_operator_orders_and_sampled_rare_terms (test_b.TrackBTest.test_all_operator_orders_and_sampled_rare_terms) ... ok
+test_ascii_only_tokenization_and_maximum_token (test_b.TrackBTest.test_ascii_only_tokenization_and_maximum_token) ... ok
+test_maximum_query_widths_and_repeated_phrase_hits (test_b.TrackBTest.test_maximum_query_widths_and_repeated_phrase_hits) ... ok
+test_no_documents_or_queries (test_b.TrackBTest.test_no_documents_or_queries) ... ok
+test_phrase_failure_links_repeats_duplicates_and_document_boundaries (test_b.TrackBTest.test_phrase_failure_links_repeats_duplicates_and_document_boundaries) ... ok
+test_query_categories_and_interleaved_output_order (test_b.TrackBTest.test_query_categories_and_interleaved_output_order) ... ok
+test_randomized_sparse_dense_sets_and_parallel_chunks (test_b.TrackBTest.test_randomized_sparse_dense_sets_and_parallel_chunks) ... ok
+test_worked_example_and_left_associativity (test_b.TrackBTest.test_worked_example_and_left_associativity) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.740s
+
+OK

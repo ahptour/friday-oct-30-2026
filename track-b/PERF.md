@@ -497,3 +497,59 @@ compiler/command metadata and existing reference-output provenance. Current
 source has no official run ID yet. The last official baseline at `1bc5fb6` was
 `run-c0aa86c4d47d`: 446.538 ms, 70,979,584 bytes, S541, D1, 61.632993 points.
 Its complete official feed snapshot is preserved as `intel-1bc5fb6.json`.
+
+
+## Inline Boolean clauses from the repository review (2026-10-31; Intel pending)
+
+Refresh the short-key result first: the feed generated 2026-10-31T05:12:30Z
+records `run-d5c09f62298a` at `1b85287`, all gates passed, **441.470 ms**,
+**67,166,208 bytes**, **S566**, D1, **61.849606 machine points**. This exceeds
+the preceding latest B61.632993 at `1bc5fb6`, but remains below historical best
+B61.902928. That official run measures short keys, not the following change.
+
+Inspired by Mnemonist's contiguous indexed structures, replace each Boolean
+clause's separately allocated operand vector with five inline uint32 entries,
+encoding term ID and polarity together. Six-term Boolean grammar bounds the
+remaining operands after removing the anchor; the full query vocabulary fits
+this encoding. Keep existing anchors, ordering, contradictions, Boolean masks,
+phrases and summaries. No dependency is added.
+
+| Batch | Full seed | Baseline median ms | Candidate median ms | Baseline max Mac footprint bytes | Candidate max Mac footprint bytes |
+|---|---:|---:|---:|---:|---:|
+| Screen, 10 timings each | 1 | 159.986 | 156.343 | 71,189,104 | 68,321,880 |
+| Screen, 10 timings each | 42 | 159.327 | 155.605 | 70,173,272 | 68,059,736 |
+| Independent repeat, 12 timings each | 1 | 159.934 | 155.570 | 69,714,544 | 67,895,920 |
+| Independent repeat, 12 timings each | 42 | 159.945 | 155.525 | 69,272,176 | 68,321,904 |
+
+The candidate won 41/44 paired trials, including all 24 repeat pairs. Repeat
+paired median runtime ratios were 0.97246 / 0.97303. Separate instrumented
+sources support the intended flush-phase improvement; no hardware cache profile
+was collected. An isolated already-matched-OR mask was flat/slower and is
+rejected. Narrowing only the inline length to u8 gave a marginal incremental
+result in one batch; retain that source without selecting it.
+
+These are serial randomized native Apple M4 Max exec-to-exit measurements,
+including setup/output, two excluded warmups and three separate memory runs
+per variant/seed. Mac footprint and RSS are not official cgroup memory. Estimated
+S566 -> S572 requires 0.316% less runtime at unchanged official memory. Actual
+candidate E/K/points are unavailable. If native repeat ratios transferred to
+Intel at equal official memory and estimated source, the hypothetical gain
+would be about 0.266 / 0.270 machine points. B would still be fourth with equal
+judge scores, so no overall-score gain is established.
+
+Eight existing differential methods and two additional boundary methods passed
+against both candidate and production release executables. An isolated polarity
+mutation failed the exhaustive six-term operator-order method (one output
+failure, no error/skip). Every benchmark and diagnostic compared full output
+bytes with saved independently verified reference bytes for seeds 1 and 42;
+these are not fresh full-size reference runs. Production full outputs matched
+too. Formatting, Clippy with warnings denied and Haswell code generation passed.
+Public/native correctness is not a holdout proof.
+
+Production matches `b-inline-clauses.rs`; no commit, push or Intel submission was
+made. Full sources, every raw sample, hashes/compiler/input identities, mutation
+failure, score budgets and explicit judge-score scenarios are in the
+[experiment report](../experiments/2026-10-31-native-first/REPO-TRICKS.md),
+`b-repo-tricks-screen.json`, `b-inline-clauses-repeat.json` and
+`repo-tricks-analysis.json`. The native runner now checks exact output bytes
+in addition to recording hashes, outside the timed interval.

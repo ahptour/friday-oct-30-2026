@@ -128,7 +128,8 @@ impl Summary {
 struct Clause {
     query: usize,
     anchor: usize,
-    terms: Vec<(usize, bool)>,
+    terms: [u32; 5],
+    len: usize,
 }
 fn anchors(
     input: &[u8],
@@ -195,10 +196,16 @@ fn anchors(
                 }
             });
             anchors[anchor].push(all.len());
+            // A Boolean query has at most six terms; the positive anchor is implicit.
+            let mut packed = [0; 5];
+            for (slot, &(term, positive)) in packed.iter_mut().zip(&terms) {
+                *slot = u32::try_from(term).unwrap() * 2 + u32::from(positive);
+            }
             all.push(Clause {
                 query: id,
                 anchor,
-                terms,
+                terms: packed,
+                len: terms.len(),
             });
         }
     }
@@ -250,9 +257,9 @@ fn flush(
     for &id in candidates {
         let clause = &clauses[id];
         let mut value = bits[clause.anchor];
-        for &(term, positive) in &clause.terms {
-            let mask = bits[term];
-            value &= if positive { mask } else { !mask };
+        for &term in &clause.terms[..clause.len] {
+            let mask = bits[(term >> 1) as usize];
+            value &= if term & 1 != 0 { mask } else { !mask };
             if value == 0 {
                 break;
             }

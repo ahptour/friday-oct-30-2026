@@ -1,0 +1,163 @@
+{
+  "note": "instrumented diagnostic runs; not selection timings",
+  "rows": [
+    {
+      "variant": "b-clause-base-profile",
+      "seed": 1,
+      "repeat": 0,
+      "stderr": "worker_ms=132.351 flush_ms=27.319\nworker_ms=132.381 flush_ms=27.265\nworker_ms=132.561 flush_ms=27.468\nworker_ms=132.807 flush_ms=27.430\nworker_ms=132.914 flush_ms=27.395\nworker_ms=133.025 flush_ms=27.920\nworker_ms=133.065 flush_ms=27.318\nworker_ms=133.183 flush_ms=27.495\nworker_ms=133.246 flush_ms=27.184\nworker_ms=133.171 flush_ms=27.824\nworker_ms=133.404 flush_ms=27.752\nworker_ms=133.679 flush_ms=27.344\n",
+      "exact_output_match": true
+    },
+    {
+      "variant": "b-clause-base-profile",
+      "seed": 1,
+      "repeat": 1,
+      "stderr": "worker_ms=130.143 flush_ms=26.862\nworker_ms=130.288 flush_ms=26.981\nworker_ms=130.354 flush_ms=27.014\nworker_ms=130.536 flush_ms=26.966\nworker_ms=130.633 flush_ms=27.100\nworker_ms=130.632 flush_ms=27.133\nworker_ms=130.638 flush_ms=27.180\nworker_ms=130.768 flush_ms=26.945\nworker_ms=130.915 flush_ms=27.081\nworker_ms=130.861 flush_ms=27.060\nworker_ms=131.071 flush_ms=27.056\nworker_ms=131.175 flush_ms=27.244\n",
+      "exact_output_match": true
+    },
+    {
+      "variant": "b-clause-base-profile",
+      "seed": 42,
+      "repeat": 0,
+      "stderr": "worker_ms=128.904 flush_ms=26.747\nworker_ms=128.998 flush_ms=26.778\nworker_ms=129.043 flush_ms=26.547\nworker_ms=129.097 flush_ms=26.684\nworker_ms=129.218 flush_ms=26.777\nworker_ms=129.302 flush_ms=26.825\nworker_ms=129.429 flush_ms=26.910\nworker_ms=129.507 flush_ms=26.918\nworker_ms=129.511 flush_ms=26.907\nworker_ms=129.725 flush_ms=26.963\nworker_ms=129.802 flush_ms=26.973\nworker_ms=129.924 flush_ms=27.027\n",
+      "exact_output_match": true
+    },
+    {
+      "variant": "b-clause-base-profile",
+      "seed": 42,
+      "repeat": 1,
+      "stderr": "worker_ms=129.826 flush_ms=26.778\nworker_ms=129.957 flush_ms=26.791\nworker_ms=130.037 flush_ms=26.733\nworker_ms=130.100 flush_ms=26.968\nworker_ms=130.190 flush_ms=26.897\nworker_ms=130.265 flush_ms=26.799\nworker_ms=130.553 flush_ms=27.034\nworker_ms=130.699 flush_ms=27.101\nworker_ms=130.667 flush_ms=27.153\nworker_ms=130.740 flush_ms=27.095\nworker_ms=130.816 flush_ms=27.158\nworker_ms=130.781 flush_ms=26.905\n",
+      "exact_output_match": true
+    },
+    {
+      "variant": "b-inline-clauses-profile",
+      "seed": 1,
+      "repeat": 0,
+      "stderr": "worker_ms=129.110 flush_ms=24.438\nworker_ms=129.191 flush_ms=24.432\nworker_ms=129.301 flush_ms=24.500\nworker_ms=129.244 flush_ms=24.505\nworker_ms=129.309 flush_ms=24.440\nworker_ms=129.350 flush_ms=24.521\nworker_ms=129.433 flush_ms=24.524\nworker_ms=129.569 flush_ms=24.646\nworker_ms=129.585 flush_ms=24.613\nworker_ms=129.596 flush_ms=24.540\nworker_ms=129.676 flush_ms=24.639\nworker_ms=129.785 flush_ms=24.597\n",
+      "exact_output_match": true
+    },
+    {
+      "variant": "b-inline-clauses-profile",
+      "seed": 1,
+      "repeat": 1,
+      "stderr": "worker_ms=126.360 flush_ms=23.926\nworker_ms=126.401 flush_ms=24.081\nworker_ms=126.496 flush_ms=23.809\nworker_ms=126.570 flush_ms=23.920\nworker_ms=126.841 flush_ms=23.936\nworker_ms=126.852 flush_ms=23.856\nworker_ms=126.921 flush_ms=23.907\nworker_ms=127.066 flush_ms=24.224\nworker_ms=127.050 flush_ms=24.017\nworker_ms=127.100 flush_ms=23.911\nworker_ms=127.257 flush_ms=24.270\nworker_ms=127.271 flush_ms=24.171\n",
+      "exact_output_match": true
+    },
+    {
+      "variant": "b-inline-clauses-profile",
+      "seed": 42,
+      "repeat": 0,
+      "stderr": "worker_ms=126.269 flush_ms=24.084\nworker_ms=126.377 flush_ms=24.030\nworker_ms=126.386 flush_ms=23.894\nworker_ms=126.597 flush_ms=23.844\nworker_ms=126.658 flush_ms=24.192\nworker_ms=126.849 flush_ms=24.064\nworker_ms=126.913 flush_ms=24.129\nworker_ms=126.879 flush_ms=24.134\nworker_ms=126.913 flush_ms=24.300\nworker_ms=126.975 flush_ms=24.280\nworker_ms=127.115 flush_ms=24.240\nworker_ms=127.279 flush_ms=24.294\n",
+      "exact_output_match": true
+    },
+    {
+      "variant": "b-inline-clauses-profile",
+      "seed": 42,
+      "repeat": 1,
+      "stderr": "worker_ms=125.996 flush_ms=24.088\nworker_ms=126.153 flush_ms=24.011\nworker_ms=126.159 flush_ms=24.177\nworker_ms=126.341 flush_ms=24.263\nworker_ms=126.462 flush_ms=24.631\nworker_ms=126.408 flush_ms=24.154\nworker_ms=126.618 flush_ms=24.329\nworker_ms=126.594 flush_ms=24.312\nworker_ms=126.694 flush_ms=24.180\nworker_ms=126.805 flush_ms=24.353\nworker_ms=126.929 flush_ms=24.281\nworker_ms=126.905 flush_ms=24.320\n",
+      "exact_output_match": true
+    },
+    {
+      "variant": "d-prune-profile",
+      "seed": 1,
+      "repeat": 0,
+      "stderr": "considered=1713326 pruned=299\nconsidered=1711546 pruned=443\nconsidered=1697174 pruned=285\nconsidered=1755768 pruned=443\nconsidered=1712429 pruned=398\nconsidered=1719906 pruned=298\nconsidered=1715255 pruned=273\nconsidered=1777653 pruned=411\nconsidered=1745008 pruned=227\nconsidered=1777542 pruned=400\nconsidered=1796653 pruned=384\nconsidered=1849895 pruned=292\n",
+      "exact_output_match": true
+    },
+    {
+      "variant": "d-prune-profile",
+      "seed": 1,
+      "repeat": 1,
+      "stderr": "considered=1689357 pruned=303\nconsidered=1718165 pruned=388\nconsidered=1726755 pruned=353\nconsidered=1712102 pruned=369\nconsidered=1748265 pruned=473\nconsidered=1704571 pruned=317\nconsidered=1741136 pruned=346\nconsidered=1745190 pruned=222\nconsidered=1748666 pruned=361\nconsidered=1827735 pruned=401\nconsidered=1794883 pruned=322\nconsidered=1815330 pruned=298\n",
+      "exact_output_match": true
+    },
+    {
+      "variant": "d-prune-profile",
+      "seed": 42,
+      "repeat": 0,
+      "stderr": "considered=1791378 pruned=323\nconsidered=1804394 pruned=347\nconsidered=1826759 pruned=352\nconsidered=1811682 pruned=347\nconsidered=1840410 pruned=258\nconsidered=1846163 pruned=303\nconsidered=1847084 pruned=546\nconsidered=1850744 pruned=308\nconsidered=1827939 pruned=393\nconsidered=1857997 pruned=326\nconsidered=1844877 pruned=269\nconsidered=1857463 pruned=434\n",
+      "exact_output_match": true
+    },
+    {
+      "variant": "d-prune-profile",
+      "seed": 42,
+      "repeat": 1,
+      "stderr": "considered=1800881 pruned=311\nconsidered=1814991 pruned=409\nconsidered=1829891 pruned=406\nconsidered=1838353 pruned=306\nconsidered=1834574 pruned=391\nconsidered=1872145 pruned=512\nconsidered=1803431 pruned=219\nconsidered=1812420 pruned=413\nconsidered=1830215 pruned=192\nconsidered=1839203 pruned=257\nconsidered=1871737 pruned=434\nconsidered=1859049 pruned=356\n",
+      "exact_output_match": true
+    }
+  ],
+  "build": {
+    "b-clause-base-profile": {
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "-C",
+        "opt-level=3",
+        "-C",
+        "lto=thin",
+        "-C",
+        "codegen-units=1",
+        "-C",
+        "panic=abort",
+        "-C",
+        "strip=symbols",
+        "-C",
+        "target-cpu=native",
+        "/Users/aa/friday-oct-30-2026/.out/native-first/b-clause-base-profile/src/main.rs",
+        "-o",
+        "/Users/aa/friday-oct-30-2026/.out/native-first/b-clause-base-profile/target/release/solution"
+      ],
+      "source_sha256": "871add7d8fc9b84c772ce998ce4d2789471bd4a1ead99b4873afe876db58ee4e",
+      "executable_sha256": "0a3d243d17eac908025c6c0e48009096a39fc7ffe946627ad25d3e0afe1e16c7",
+      "compiler": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: aarch64-apple-darwin\nrelease: 1.98.1\nLLVM version: 22.1.8"
+    },
+    "b-inline-clauses-profile": {
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "-C",
+        "opt-level=3",
+        "-C",
+        "lto=thin",
+        "-C",
+        "codegen-units=1",
+        "-C",
+        "panic=abort",
+        "-C",
+        "strip=symbols",
+        "-C",
+        "target-cpu=native",
+        "/Users/aa/friday-oct-30-2026/.out/native-first/b-inline-clauses-profile/src/main.rs",
+        "-o",
+        "/Users/aa/friday-oct-30-2026/.out/native-first/b-inline-clauses-profile/target/release/solution"
+      ],
+      "source_sha256": "b73c7ffa38b84d7f51d29bfb88e98cd68bd8a6f68c2f336d1180f88e056b79e3",
+      "executable_sha256": "5e71d16a331de065a7475a01c69273249130ed30106fc8d83bfd6c4e8b81419d",
+      "compiler": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: aarch64-apple-darwin\nrelease: 1.98.1\nLLVM version: 22.1.8"
+    },
+    "d-prune-profile": {
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "-C",
+        "opt-level=3",
+        "-C",
+        "lto=thin",
+        "-C",
+        "codegen-units=1",
+        "-C",
+        "panic=abort",
+        "-C",
+        "strip=symbols",
+        "-C",
+        "target-cpu=native",
+        "/Users/aa/friday-oct-30-2026/.out/native-first/d-prune-profile/src/main.rs",
+        "-o",
+        "/Users/aa/friday-oct-30-2026/.out/native-first/d-prune-profile/target/release/solution"
+      ],
+      "source_sha256": "1e85ab12c62db052067513652aa48fe007440694dde03498941c89a33a1e079b",
+      "executable_sha256": "6add63029cec55c5ea8d2883a3beb51e474bf60b52160e6e41daa017b98c81db",
+      "compiler": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: aarch64-apple-darwin\nrelease: 1.98.1\nLLVM version: 22.1.8"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "recorded_utc": "2026-10-31T05:12:38.599882+00:00",
+  "runs": [
+    {
+      "command": [
+        "python3",
+        "experiments/2026-10-31-native-first/run.py",
+        "test",
+        "b-inline-clauses",
+        "d-prune"
+      ],
+      "exit_code": 0,
+      "log": "experiments/2026-10-31-native-first/repo-tricks-correctness-0.txt"
+    },
+    {
+      "command": [
+        "python3",
+        "experiments/2026-10-31-native-first/test_b_shortkeys.py",
+        ".out/native-first/b-inline-clauses/target/release/solution"
+      ],
+      "exit_code": 0,
+      "log": "experiments/2026-10-31-native-first/repo-tricks-correctness-1.txt"
+    }
+  ]
+}

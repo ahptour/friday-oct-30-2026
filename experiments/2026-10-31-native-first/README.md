@@ -9,7 +9,7 @@ sources are isolated candidates or diagnostics. File existence is not a test
 result. The earlier screen JSON files were committed at `1bc5fb6`; detailed
 historical status remains in AGENTS.md and each production PERF.md.
 
-## Latest selection
+## Earlier native selection
 
 | Mechanism | Outcome |
 |---|---|
@@ -19,8 +19,8 @@ historical status remains in AGENTS.md and each production PERF.md.
 | B directly built 8-byte dictionary | Archive: slower than 16-byte variant on both seeds in the shared screen |
 | B directly built 16-byte dictionary | Selected locally for Intel trial after two batches; official benefit pending |
 
-The selected complete file is `b-shortkeys-direct.rs`. Production Track B matches
-it exactly. Native screen medians were 171.297 -> 165.386 ms / 169.304 ->
+The selected complete file for that batch was `b-shortkeys-direct.rs`. Production
+Track B matched it at that point. Native screen medians were 171.297 -> 165.386 ms / 169.304 ->
 165.792 ms on full seeds 1 / 42. Independent repeat medians were 169.935 ->
 165.673 ms / 173.914 -> 167.021 ms. The candidate was faster in 39/44 timing
 pairs. Raw variability and separate RSS/footprint samples are preserved, not
@@ -64,3 +64,15 @@ snapshot. It separates latest runs from historical bests, records memory-cap
 floors and hypothetical score targets, and does not substitute Mac footprint
 for official memory. Source counts for unsubmitted candidates remain estimates.
 No commit or official submission was made in this session.
+
+
+## Repository-ideas follow-up (latest)
+
+Production B now matches `b-inline-clauses.rs`: keep short keys and store Boolean
+operands inline. Two native batches on full seeds 1/42 show a small repeatable
+runtime improvement; eight differential and two boundary methods passed again
+from production, and an isolated polarity mutation failed as expected. The
+prior short-key source now has an official result at `1b85287` (S566 confirmed);
+inline clauses do not yet have an Intel result. D pruning and B's already-matched
+OR mask lost and remain archived. See [REPO-TRICKS.md](REPO-TRICKS.md) for the
+three-repository research, full evidence, score budgets and selection limits.

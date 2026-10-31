@@ -1,0 +1,66 @@
+{
+  "note": "code generation only; no Intel execution or linked executable",
+  "compiler": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: aarch64-apple-darwin\nrelease: 1.98.1\nLLVM version: 22.1.8\n",
+  "rows": [
+    {
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "-C",
+        "opt-level=3",
+        "-C",
+        "lto=thin",
+        "-C",
+        "codegen-units=1",
+        "-C",
+        "panic=abort",
+        "--target=x86_64-unknown-linux-gnu",
+        "-C",
+        "target-cpu=haswell",
+        "--emit=asm",
+        "--out-dir",
+        ".out/repo-tricks",
+        "--crate-name",
+        "b_clause_base_haswell",
+        "experiments/2026-10-31-native-first/b-clause-base.rs"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "source_sha256": "a853c230b879378bc56bd25b4750c3364ab4d2f0658b5b0439ac26df62a6f3fd",
+      "assembly_sha256": {
+        ".out/repo-tricks/b_clause_base_haswell.cypwegw439qerxe1h6s9nn0uo.rcgu.s": "c8d0949851fb20d87ed99a07b22c201edcd6e580e6cc4221209bc697035ed758",
+        ".out/repo-tricks/b_clause_base_haswell.b_clause_base_haswell.70e4429782120dbc-cgu.0.rcgu.s": "ff264f27740995f1c2b9f571a403c2796ec1e5c046386caeef93138f0bf584ff"
+      }
+    },
+    {
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "-C",
+        "opt-level=3",
+        "-C",
+        "lto=thin",
+        "-C",
+        "codegen-units=1",
+        "-C",
+        "panic=abort",
+        "--target=x86_64-unknown-linux-gnu",
+        "-C",
+        "target-cpu=haswell",
+        "--emit=asm",
+        "--out-dir",
+        ".out/repo-tricks",
+        "--crate-name",
+        "b_inline_clauses_haswell",
+        "experiments/2026-10-31-native-first/b-inline-clauses.rs"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "source_sha256": "bb3ea516c84932fa3fe06e32e56668abff7b256d0092e7d8b7ecfbec251888da",
+      "assembly_sha256": {
+        ".out/repo-tricks/b_inline_clauses_haswell.3y40xfomhhhd0ek3rmo2rgtu5.rcgu.s": "e25837eb6c476973e9c3936bc4b07276d28caee70b79e1697dfce26173454c16",
+        ".out/repo-tricks/b_inline_clauses_haswell.b_inline_clauses_haswell.e5e5310a0f7e9898-cgu.0.rcgu.s": "ad24d02c8ab1dd906f643635d5c1dafcb5db684ecba7e79a3664fc04f8b82ddf"
+      }
+    }
+  ]
+}

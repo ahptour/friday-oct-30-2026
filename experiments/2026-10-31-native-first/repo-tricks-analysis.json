@@ -1,0 +1,1471 @@
+{
+  "board_generated_utc": "2026-10-31T05:12:30Z",
+  "board_sha256": "4725fdb89f20ca4e5f9d14bb04aa3f2d7cb713694cd006eb017b87cacda88fe6",
+  "baseline_HEAD": "1b8528789fb6cf7f6c847e8fabc566cc4923ad56",
+  "reference": {
+    "a": {
+      "T": 32.047276,
+      "M": 227983360,
+      "S": 56,
+      "D": 1
+    },
+    "b": {
+      "T": 56.352376,
+      "M": 2199961600,
+      "S": 91,
+      "D": 1
+    },
+    "c": {
+      "T": 14.444059,
+      "M": 367435776,
+      "S": 108,
+      "D": 1
+    },
+    "d": {
+      "T": 72.692655,
+      "M": 892915712,
+      "S": 43,
+      "D": 1
+    }
+  },
+  "scoring_sha256": "8a915a8b6756290ffe982cbf81f271938eabb05adff5340555b492467e27f31a",
+  "latest_official": {
+    "a": {
+      "run_id": "run-ea3a09c5c3e6",
+      "commit": "1b8528789fb6cf7f6c847e8fabc566cc4923ad56",
+      "costs": {
+        "T": 0.038339,
+        "M": 23830528,
+        "S": 488,
+        "D": 1
+      },
+      "calculated": {
+        "E_s": 0.02974421594232246,
+        "K": 32.82421114557099,
+        "points": 75.80971488089038
+      },
+      "board_points": 75.809715
+    },
+    "b": {
+      "run_id": "run-d5c09f62298a",
+      "commit": "1b8528789fb6cf7f6c847e8fabc566cc4923ad56",
+      "costs": {
+        "T": 0.44147,
+        "M": 67166208,
+        "S": 566,
+        "D": 1
+      },
+      "calculated": {
+        "E_s": 0.18920299206246036,
+        "K": 17.2580656208252,
+        "points": 61.84960579931662
+      },
+      "board_points": 61.849606
+    },
+    "c": {
+      "run_id": "run-763415ebc459",
+      "commit": "1b8528789fb6cf7f6c847e8fabc566cc4923ad56",
+      "costs": {
+        "T": 0.053291,
+        "M": 14258176,
+        "S": 540,
+        "D": 1
+      },
+      "calculated": {
+        "E_s": 0.023544956026501605,
+        "K": 24.768270669378527,
+        "points": 69.69478425144648
+      },
+      "board_points": 69.694784
+    },
+    "d": {
+      "run_id": "run-801d38cbcb6b",
+      "commit": "1b8528789fb6cf7f6c847e8fabc566cc4923ad56",
+      "costs": {
+        "T": 0.251424,
+        "M": 110317568,
+        "S": 457,
+        "D": 1
+      },
+      "calculated": {
+        "E_s": 0.22134756075918205,
+        "K": 18.12207382827299,
+        "points": 62.91039476814244
+      },
+      "board_points": 62.910395
+    }
+  },
+  "native_limit": "Mac time/RSS/footprint are not official T/M. Native E/K/points unavailable.",
+  "rows": [
+    {
+      "report": "b-repo-tricks-screen.json",
+      "variant": "b-inline-clauses",
+      "seed": 1,
+      "measured_native": {
+        "T_median_ms": 156.342875,
+        "baseline_T_median_ms": 159.9859165,
+        "timing_samples": 10,
+        "faster_pairs": 9,
+        "paired_ratio_median": 0.9769642945711667,
+        "ratio_of_medians": 0.9772289862776764,
+        "sample_stdev_ms": 2.34936688203302,
+        "range_ms": [
+          154.629458,
+          162.627209
+        ],
+        "max_RSS_bytes": 322715648,
+        "max_Mac_footprint_bytes": 68321880,
+        "baseline_max_RSS_bytes": 325566464,
+        "baseline_max_Mac_footprint_bytes": 71189104
+      },
+      "source": {
+        "baseline_official_S": 566,
+        "estimated_candidate_S": 572,
+        "local_delta": 6
+      },
+      "dependencies": 1,
+      "official_candidate_M": null,
+      "native_E_K_points": null,
+      "equal_official_memory_budget": {
+        "max_runtime_ratio": 0.996841524558465,
+        "break_even_Intel_ms": 440.0756278468255,
+        "five_machine_point_target_Intel_ms": 277.66894951668684
+      },
+      "hypothetical_only": {
+        "assumptions": "Native ratio transfers to Intel; official M and D unchanged; estimated S accepted. Not a measured candidate score.",
+        "costs": {
+          "T": 0.4314172805720058,
+          "M": 67166208,
+          "S": 572,
+          "D": 1
+        },
+        "before": {
+          "E_s": 0.18920299206246036,
+          "K": 17.2580656208252,
+          "points": 61.84960579931662
+        },
+        "after": {
+          "E_s": 0.18548048368650927,
+          "K": 17.430386055067075,
+          "points": 62.06535030710209
+        },
+        "clamped_point_delta": 0.21574450778547316,
+        "preclamp_axis_points": {
+          "T": 0.25009148982112694,
+          "M": 0,
+          "S": -0.03434698203564589,
+          "D": 0
+        },
+        "aggregate_scenarios": {
+          "equal_judges_80": {
+            "judges": {
+              "a": 80,
+              "b": 80,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.2022439,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "after": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.34247769961635,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "delta_G": 0.0
+          },
+          "B_judge_84_others_80": {
+            "judges": {
+              "a": 80,
+              "b": 84,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.32651617335165,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.60224389999999,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "after": {
+              "G": 73.37572894386426,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.74247769961636,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "delta_G": 0.04921277051261086
+          }
+        }
+      }
+    },
+    {
+      "report": "b-repo-tricks-screen.json",
+      "variant": "b-unmatched",
+      "seed": 1,
+      "measured_native": {
+        "T_median_ms": 160.2401665,
+        "baseline_T_median_ms": 159.9859165,
+        "timing_samples": 10,
+        "faster_pairs": 4,
+        "paired_ratio_median": 1.0006216333461992,
+        "ratio_of_medians": 1.0015892023845736,
+        "sample_stdev_ms": 1.2323129848910426,
+        "range_ms": [
+          159.214083,
+          163.753625
+        ],
+        "max_RSS_bytes": 324403200,
+        "max_Mac_footprint_bytes": 70025840,
+        "baseline_max_RSS_bytes": 325566464,
+        "baseline_max_Mac_footprint_bytes": 71189104
+      },
+      "source": {
+        "baseline_official_S": 566,
+        "estimated_candidate_S": 569,
+        "local_delta": 3
+      },
+      "dependencies": 1,
+      "official_candidate_M": null,
+      "native_E_K_points": null,
+      "equal_official_memory_budget": {
+        "max_runtime_ratio": 0.9984153501086859,
+        "break_even_Intel_ms": 440.7704246124815,
+        "five_machine_point_target_Intel_ms": 278.1073366388986
+      },
+      "hypothetical_only": {
+        "assumptions": "Native ratio transfers to Intel; official M and D unchanged; estimated S accepted. Not a measured candidate score.",
+        "costs": {
+          "T": 0.4421715851767177,
+          "M": 67166208,
+          "S": 569,
+          "D": 1
+        },
+        "before": {
+          "E_s": 0.18920299206246036,
+          "K": 17.2580656208252,
+          "points": 61.84960579931662
+        },
+        "after": {
+          "E_s": 0.18980444750572537,
+          "K": 17.230700103989946,
+          "points": 61.815146185583444
+        },
+        "clamped_point_delta": -0.0344596137331763,
+        "preclamp_axis_points": {
+          "T": -0.01724084968217424,
+          "M": 0,
+          "S": -0.017218764050997936,
+          "D": 0
+        },
+        "aggregate_scenarios": {
+          "equal_judges_80": {
+            "judges": {
+              "a": 80,
+              "b": 80,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.2022439,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "after": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.17984502062924,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "delta_G": 0.0
+          },
+          "B_judge_84_others_80": {
+            "judges": {
+              "a": 80,
+              "b": 84,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.32651617335165,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.60224389999999,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "after": {
+              "G": 73.31864953038634,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.57984502062924,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "delta_G": -0.007866642965311144
+          }
+        }
+      }
+    },
+    {
+      "report": "b-repo-tricks-screen.json",
+      "variant": "b-inline-clauses",
+      "seed": 42,
+      "measured_native": {
+        "T_median_ms": 155.604688,
+        "baseline_T_median_ms": 159.32693799999998,
+        "timing_samples": 10,
+        "faster_pairs": 8,
+        "paired_ratio_median": 0.9769557894961431,
+        "ratio_of_medians": 0.976637660607022,
+        "sample_stdev_ms": 2.4150123437631823,
+        "range_ms": [
+          154.848333,
+          161.630125
+        ],
+        "max_RSS_bytes": 320208896,
+        "max_Mac_footprint_bytes": 68059736,
+        "baseline_max_RSS_bytes": 322322432,
+        "baseline_max_Mac_footprint_bytes": 70173272
+      },
+      "source": {
+        "baseline_official_S": 566,
+        "estimated_candidate_S": 572,
+        "local_delta": 6
+      },
+      "dependencies": 1,
+      "official_candidate_M": null,
+      "native_E_K_points": null,
+      "equal_official_memory_budget": {
+        "max_runtime_ratio": 0.996841524558465,
+        "break_even_Intel_ms": 440.0756278468255,
+        "five_machine_point_target_Intel_ms": 277.66894951668684
+      },
+      "hypothetical_only": {
+        "assumptions": "Native ratio transfers to Intel; official M and D unchanged; estimated S accepted. Not a measured candidate score.",
+        "costs": {
+          "T": 0.43115622802818193,
+          "M": 67166208,
+          "S": 572,
+          "D": 1
+        },
+        "before": {
+          "E_s": 0.18920299206246036,
+          "K": 17.2580656208252,
+          "points": 61.84960579931662
+        },
+        "after": {
+          "E_s": 0.18536824860860085,
+          "K": 17.43566205222509,
+          "points": 62.071922134407274
+        },
+        "clamped_point_delta": 0.22231633509065318,
+        "preclamp_axis_points": {
+          "T": 0.25666331712631024,
+          "M": 0,
+          "S": -0.03434698203564589,
+          "D": 0
+        },
+        "aggregate_scenarios": {
+          "equal_judges_80": {
+            "judges": {
+              "a": 80,
+              "b": 80,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.2022439,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "after": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.34674938736472,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "delta_G": 0.0
+          },
+          "B_judge_84_others_80": {
+            "judges": {
+              "a": 80,
+              "b": 84,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.32651617335165,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.60224389999999,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "after": {
+              "G": 73.37722698739813,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.74674938736473,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "delta_G": 0.050710814046482255
+          }
+        }
+      }
+    },
+    {
+      "report": "b-repo-tricks-screen.json",
+      "variant": "b-unmatched",
+      "seed": 42,
+      "measured_native": {
+        "T_median_ms": 159.9436875,
+        "baseline_T_median_ms": 159.32693799999998,
+        "timing_samples": 10,
+        "faster_pairs": 3,
+        "paired_ratio_median": 1.0039375446745573,
+        "ratio_of_medians": 1.0038709681347169,
+        "sample_stdev_ms": 3.9793687053804425,
+        "range_ms": [
+          159.336708,
+          172.453125
+        ],
+        "max_RSS_bytes": 321863680,
+        "max_Mac_footprint_bytes": 69714520,
+        "baseline_max_RSS_bytes": 322322432,
+        "baseline_max_Mac_footprint_bytes": 70173272
+      },
+      "source": {
+        "baseline_official_S": 566,
+        "estimated_candidate_S": 569,
+        "local_delta": 3
+      },
+      "dependencies": 1,
+      "official_candidate_M": null,
+      "native_E_K_points": null,
+      "equal_official_memory_budget": {
+        "max_runtime_ratio": 0.9984153501086859,
+        "break_even_Intel_ms": 440.7704246124815,
+        "five_machine_point_target_Intel_ms": 278.1073366388986
+      },
+      "hypothetical_only": {
+        "assumptions": "Native ratio transfers to Intel; official M and D unchanged; estimated S accepted. Not a measured candidate score.",
+        "costs": {
+          "T": 0.44317891630243345,
+          "M": 67166208,
+          "S": 569,
+          "D": 1
+        },
+        "before": {
+          "E_s": 0.18920299206246036,
+          "K": 17.2580656208252,
+          "points": 61.84960579931662
+        },
+        "after": {
+          "E_s": 0.19023684961879964,
+          "K": 17.211106555985637,
+          "points": 61.790439668933026
+        },
+        "clamped_point_delta": -0.05916613038359486,
+        "preclamp_axis_points": {
+          "T": -0.04194736633259177,
+          "M": 0,
+          "S": -0.017218764050997936,
+          "D": 0
+        },
+        "aggregate_scenarios": {
+          "equal_judges_80": {
+            "judges": {
+              "a": 80,
+              "b": 80,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.2022439,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "after": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.16378578480646,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "delta_G": 0.0
+          },
+          "B_judge_84_others_80": {
+            "judges": {
+              "a": 80,
+              "b": 84,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.32651617335165,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.60224389999999,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "after": {
+              "G": 73.31300837534613,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.56378578480647,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "delta_G": -0.013507798005520044
+          }
+        }
+      }
+    },
+    {
+      "report": "b-inline-clauses-repeat.json",
+      "variant": "b-inline8-clauses",
+      "seed": 1,
+      "measured_native": {
+        "T_median_ms": 155.4436665,
+        "baseline_T_median_ms": 159.933833,
+        "timing_samples": 12,
+        "faster_pairs": 11,
+        "paired_ratio_median": 0.972544699551229,
+        "ratio_of_medians": 0.9719248490718034,
+        "sample_stdev_ms": 2.645889000022459,
+        "range_ms": [
+          155.011333,
+          164.050125
+        ],
+        "max_RSS_bytes": 322125824,
+        "max_Mac_footprint_bytes": 67748464,
+        "baseline_max_RSS_bytes": 324091904,
+        "baseline_max_Mac_footprint_bytes": 69714544
+      },
+      "source": {
+        "baseline_official_S": 566,
+        "estimated_candidate_S": 572,
+        "local_delta": 6
+      },
+      "dependencies": 1,
+      "official_candidate_M": null,
+      "native_E_K_points": null,
+      "equal_official_memory_budget": {
+        "max_runtime_ratio": 0.996841524558465,
+        "break_even_Intel_ms": 440.0756278468255,
+        "five_machine_point_target_Intel_ms": 277.66894951668684
+      },
+      "hypothetical_only": {
+        "assumptions": "Native ratio transfers to Intel; official M and D unchanged; estimated S accepted. Not a measured candidate score.",
+        "costs": {
+          "T": 0.42907566311972906,
+          "M": 67166208,
+          "S": 572,
+          "D": 1
+        },
+        "before": {
+          "E_s": 0.18920299206246036,
+          "K": 17.2580656208252,
+          "points": 61.84960579931662
+        },
+        "after": {
+          "E_s": 0.18447374529837332,
+          "K": 17.4778832277691,
+          "points": 62.124441671881115
+        },
+        "clamped_point_delta": 0.2748358725644948,
+        "preclamp_axis_points": {
+          "T": 0.30918285460014705,
+          "M": 0,
+          "S": -0.03434698203564589,
+          "D": 0
+        },
+        "aggregate_scenarios": {
+          "equal_judges_80": {
+            "judges": {
+              "a": 80,
+              "b": 80,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.2022439,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "after": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.38088708672272,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "delta_G": 0.0
+          },
+          "B_judge_84_others_80": {
+            "judges": {
+              "a": 80,
+              "b": 84,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.32651617335165,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.60224389999999,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "after": {
+              "G": 73.38919658295444,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.78088708672271,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "delta_G": 0.06268040960279109
+          }
+        }
+      }
+    },
+    {
+      "report": "b-inline-clauses-repeat.json",
+      "variant": "b-inline-clauses",
+      "seed": 1,
+      "measured_native": {
+        "T_median_ms": 155.5700625,
+        "baseline_T_median_ms": 159.933833,
+        "timing_samples": 12,
+        "faster_pairs": 12,
+        "paired_ratio_median": 0.9724582089205898,
+        "ratio_of_medians": 0.9727151508961835,
+        "sample_stdev_ms": 0.572944009452319,
+        "range_ms": [
+          154.833375,
+          156.555583
+        ],
+        "max_RSS_bytes": 322273280,
+        "max_Mac_footprint_bytes": 67895920,
+        "baseline_max_RSS_bytes": 324091904,
+        "baseline_max_Mac_footprint_bytes": 69714544
+      },
+      "source": {
+        "baseline_official_S": 566,
+        "estimated_candidate_S": 572,
+        "local_delta": 6
+      },
+      "dependencies": 1,
+      "official_candidate_M": null,
+      "native_E_K_points": null,
+      "equal_official_memory_budget": {
+        "max_runtime_ratio": 0.996841524558465,
+        "break_even_Intel_ms": 440.0756278468255,
+        "five_machine_point_target_Intel_ms": 277.66894951668684
+      },
+      "hypothetical_only": {
+        "assumptions": "Native ratio transfers to Intel; official M and D unchanged; estimated S accepted. Not a measured candidate score.",
+        "costs": {
+          "T": 0.42942455766613813,
+          "M": 67166208,
+          "S": 572,
+          "D": 1
+        },
+        "before": {
+          "E_s": 0.18920299206246036,
+          "K": 17.2580656208252,
+          "points": 61.84960579931662
+        },
+        "after": {
+          "E_s": 0.18462374654342714,
+          "K": 17.47078165761744,
+          "points": 62.1156168060893
+        },
+        "clamped_point_delta": 0.2660110067726791,
+        "preclamp_axis_points": {
+          "T": 0.30035798880833525,
+          "M": 0,
+          "S": -0.03434698203564589,
+          "D": 0
+        },
+        "aggregate_scenarios": {
+          "equal_judges_80": {
+            "judges": {
+              "a": 80,
+              "b": 80,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.2022439,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "after": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.37515092395805,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "delta_G": 0.0
+          },
+          "B_judge_84_others_80": {
+            "judges": {
+              "a": 80,
+              "b": 84,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.32651617335165,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.60224389999999,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "after": {
+              "G": 73.38718560291936,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.77515092395805,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "delta_G": 0.060669429567710154
+          }
+        }
+      }
+    },
+    {
+      "report": "b-inline-clauses-repeat.json",
+      "variant": "b-inline8-clauses",
+      "seed": 42,
+      "measured_native": {
+        "T_median_ms": 155.1975835,
+        "baseline_T_median_ms": 159.9454165,
+        "timing_samples": 12,
+        "faster_pairs": 12,
+        "paired_ratio_median": 0.9721025553749754,
+        "ratio_of_medians": 0.9703159171178876,
+        "sample_stdev_ms": 0.9379470391253795,
+        "range_ms": [
+          154.52325,
+          157.526709
+        ],
+        "max_RSS_bytes": 319504384,
+        "max_Mac_footprint_bytes": 67371632,
+        "baseline_max_RSS_bytes": 321404928,
+        "baseline_max_Mac_footprint_bytes": 69272176
+      },
+      "source": {
+        "baseline_official_S": 566,
+        "estimated_candidate_S": 572,
+        "local_delta": 6
+      },
+      "dependencies": 1,
+      "official_candidate_M": null,
+      "native_E_K_points": null,
+      "equal_official_memory_budget": {
+        "max_runtime_ratio": 0.996841524558465,
+        "break_even_Intel_ms": 440.0756278468255,
+        "five_machine_point_target_Intel_ms": 277.66894951668684
+      },
+      "hypothetical_only": {
+        "assumptions": "Native ratio transfers to Intel; official M and D unchanged; estimated S accepted. Not a measured candidate score.",
+        "costs": {
+          "T": 0.42836536793003377,
+          "M": 67166208,
+          "S": 572,
+          "D": 1
+        },
+        "before": {
+          "E_s": 0.18920299206246036,
+          "K": 17.2580656208252,
+          "points": 61.84960579931662
+        },
+        "after": {
+          "E_s": 0.18416836602573453,
+          "K": 17.49236772547588,
+          "points": 62.142429926513124
+        },
+        "clamped_point_delta": 0.2928241271965035,
+        "preclamp_axis_points": {
+          "T": 0.3271711092321582,
+          "M": 0,
+          "S": -0.03434698203564589,
+          "D": 0
+        },
+        "aggregate_scenarios": {
+          "equal_judges_80": {
+            "judges": {
+              "a": 80,
+              "b": 80,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.2022439,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "after": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.39257945223353,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "delta_G": 0.0
+          },
+          "B_judge_84_others_80": {
+            "judges": {
+              "a": 80,
+              "b": 84,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.32651617335165,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.60224389999999,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "after": {
+              "G": 73.39329534325208,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.79257945223353,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "delta_G": 0.06677916990042831
+          }
+        }
+      }
+    },
+    {
+      "report": "b-inline-clauses-repeat.json",
+      "variant": "b-inline-clauses",
+      "seed": 42,
+      "measured_native": {
+        "T_median_ms": 155.52529149999998,
+        "baseline_T_median_ms": 159.9454165,
+        "timing_samples": 12,
+        "faster_pairs": 12,
+        "paired_ratio_median": 0.9730330235036693,
+        "ratio_of_medians": 0.9723647910848385,
+        "sample_stdev_ms": 1.2865690370416503,
+        "range_ms": [
+          154.943166,
+          159.757875
+        ],
+        "max_RSS_bytes": 320454656,
+        "max_Mac_footprint_bytes": 68321904,
+        "baseline_max_RSS_bytes": 321404928,
+        "baseline_max_Mac_footprint_bytes": 69272176
+      },
+      "source": {
+        "baseline_official_S": 566,
+        "estimated_candidate_S": 572,
+        "local_delta": 6
+      },
+      "dependencies": 1,
+      "official_candidate_M": null,
+      "native_E_K_points": null,
+      "equal_official_memory_budget": {
+        "max_runtime_ratio": 0.996841524558465,
+        "break_even_Intel_ms": 440.0756278468255,
+        "five_machine_point_target_Intel_ms": 277.66894951668684
+      },
+      "hypothetical_only": {
+        "assumptions": "Native ratio transfers to Intel; official M and D unchanged; estimated S accepted. Not a measured candidate score.",
+        "costs": {
+          "T": 0.4292698843202236,
+          "M": 67166208,
+          "S": 572,
+          "D": 1
+        },
+        "before": {
+          "E_s": 0.18920299206246036,
+          "K": 17.2580656208252,
+          "points": 61.84960579931662
+        },
+        "after": {
+          "E_s": 0.18455724738285667,
+          "K": 17.473928886178253,
+          "points": 62.119528196338855
+        },
+        "clamped_point_delta": 0.26992239702223486,
+        "preclamp_axis_points": {
+          "T": 0.30426937905789225,
+          "M": 0,
+          "S": -0.03434698203564589,
+          "D": 0
+        },
+        "aggregate_scenarios": {
+          "equal_judges_80": {
+            "judges": {
+              "a": 80,
+              "b": 80,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.2022439,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "after": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.37769332762025,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "delta_G": 0.0
+          },
+          "B_judge_84_others_80": {
+            "judges": {
+              "a": 80,
+              "b": 84,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.32651617335165,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.60224389999999,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "after": {
+              "G": 73.38807693066221,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.77769332762026,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "delta_G": 0.06156075731055921
+          }
+        }
+      }
+    },
+    {
+      "report": "d-prune-screen.json",
+      "variant": "d-prune",
+      "seed": 1,
+      "measured_native": {
+        "T_median_ms": 78.212125,
+        "baseline_T_median_ms": 76.765084,
+        "timing_samples": 10,
+        "faster_pairs": 1,
+        "paired_ratio_median": 1.0172805686247028,
+        "ratio_of_medians": 1.018850249678617,
+        "sample_stdev_ms": 0.6536820034080459,
+        "range_ms": [
+          77.012667,
+          79.294709
+        ],
+        "max_RSS_bytes": 176472064,
+        "max_Mac_footprint_bytes": 146326008,
+        "baseline_max_RSS_bytes": 176570368,
+        "baseline_max_Mac_footprint_bytes": 145654264
+      },
+      "source": {
+        "baseline_official_S": 457,
+        "estimated_candidate_S": 460,
+        "local_delta": 3
+      },
+      "dependencies": 1,
+      "official_candidate_M": null,
+      "native_E_K_points": null,
+      "equal_official_memory_budget": {
+        "max_runtime_ratio": 0.9980389957096408,
+        "break_even_Intel_ms": 250.9309564573007,
+        "five_machine_point_target_Intel_ms": 158.32672993417344
+      },
+      "hypothetical_only": {
+        "assumptions": "Native ratio transfers to Intel; official M and D unchanged; estimated S accepted. Not a measured candidate score.",
+        "costs": {
+          "T": 0.2561634051751966,
+          "M": 110317568,
+          "S": 460,
+          "D": 1
+        },
+        "before": {
+          "E_s": 0.22134756075918205,
+          "K": 18.12207382827299,
+          "points": 62.91039476814244
+        },
+        "after": {
+          "E_s": 0.22596313221698597,
+          "K": 17.93603623021401,
+          "points": 62.68632362563068
+        },
+        "clamped_point_delta": -0.22407114251176097,
+        "preclamp_axis_points": {
+          "T": -0.2027589054238354,
+          "M": 0,
+          "S": -0.021312237087928763,
+          "D": 0
+        },
+        "aggregate_scenarios": {
+          "equal_judges_80": {
+            "judges": {
+              "a": 80,
+              "b": 80,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.2022439,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "after": {
+              "G": 73.02462715971558,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.2022439,
+                "c": 73.3016096,
+                "d": 68.74611035665994
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "delta_G": -0.05153392831908832
+          },
+          "B_judge_84_others_80": {
+            "judges": {
+              "a": 80,
+              "b": 84,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.32651617335165,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.60224389999999,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "after": {
+              "G": 73.32651617335165,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.60224389999999,
+                "c": 73.3016096,
+                "d": 68.74611035665994
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "delta_G": 0.0
+          }
+        }
+      }
+    },
+    {
+      "report": "d-prune-screen.json",
+      "variant": "d-prune",
+      "seed": 42,
+      "measured_native": {
+        "T_median_ms": 78.98206300000001,
+        "baseline_T_median_ms": 77.46525,
+        "timing_samples": 10,
+        "faster_pairs": 2,
+        "paired_ratio_median": 1.0170333424449272,
+        "ratio_of_medians": 1.0195805603157546,
+        "sample_stdev_ms": 0.7336844156073895,
+        "range_ms": [
+          77.383167,
+          79.552166
+        ],
+        "max_RSS_bytes": 176537600,
+        "max_Mac_footprint_bytes": 148013560,
+        "baseline_max_RSS_bytes": 176504832,
+        "baseline_max_Mac_footprint_bytes": 148242936
+      },
+      "source": {
+        "baseline_official_S": 457,
+        "estimated_candidate_S": 460,
+        "local_delta": 3
+      },
+      "dependencies": 1,
+      "official_candidate_M": null,
+      "native_E_K_points": null,
+      "equal_official_memory_budget": {
+        "max_runtime_ratio": 0.9980389957096408,
+        "break_even_Intel_ms": 250.9309564573007,
+        "five_machine_point_target_Intel_ms": 158.32672993417344
+      },
+      "hypothetical_only": {
+        "assumptions": "Native ratio transfers to Intel; official M and D unchanged; estimated S accepted. Not a measured candidate score.",
+        "costs": {
+          "T": 0.25634702279682825,
+          "M": 110317568,
+          "S": 460,
+          "D": 1
+        },
+        "before": {
+          "E_s": 0.22134756075918205,
+          "K": 18.12207382827299,
+          "points": 62.91039476814244
+        },
+        "after": {
+          "E_s": 0.22612510231917818,
+          "K": 17.92961141935008,
+          "points": 62.678543869462366
+        },
+        "clamped_point_delta": -0.23185089868007225,
+        "preclamp_axis_points": {
+          "T": -0.2105386615921464,
+          "M": 0,
+          "S": -0.021312237087928763,
+          "D": 0
+        },
+        "aggregate_scenarios": {
+          "equal_judges_80": {
+            "judges": {
+              "a": 80,
+              "b": 80,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.07616108803467,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.2022439,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "after": {
+              "G": 73.02283659528143,
+              "totals": {
+                "a": 77.27631475,
+                "b": 68.2022439,
+                "c": 73.3016096,
+                "d": 68.74105351515054
+              },
+              "counting": [
+                "a",
+                "c",
+                "d"
+              ]
+            },
+            "delta_G": -0.0533244927532337
+          },
+          "B_judge_84_others_80": {
+            "judges": {
+              "a": 80,
+              "b": 84,
+              "c": 80,
+              "d": 80
+            },
+            "before": {
+              "G": 73.32651617335165,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.60224389999999,
+                "c": 73.3016096,
+                "d": 68.89175675
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "after": {
+              "G": 73.32651617335165,
+              "totals": {
+                "a": 77.27631475,
+                "b": 69.60224389999999,
+                "c": 73.3016096,
+                "d": 68.74105351515054
+              },
+              "counting": [
+                "a",
+                "c",
+                "b"
+              ]
+            },
+            "delta_G": 0.0
+          }
+        }
+      }
+    }
+  ]
+}

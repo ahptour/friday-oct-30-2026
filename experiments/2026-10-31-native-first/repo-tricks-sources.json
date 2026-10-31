@@ -1,0 +1,26 @@
+{
+  "keirsalterego/0xicbor/decisions.md": {
+    "sha": "0bc614f94af71219b57bca37465b24002b11c082",
+    "url": "https://github.com/keirsalterego/0xicbor/blob/main/decisions.md"
+  },
+  "bhavyakeerthi3/mnemonist-rs/DECISIONS.md": {
+    "sha": "709215f1b491bf16372959f0f459efce6295b968",
+    "url": "https://github.com/bhavyakeerthi3/mnemonist-rs/blob/main/DECISIONS.md"
+  },
+  "aniket-3001/cron-parser-go/DECISIONS.md": {
+    "sha": "257192024766f3173a6be3bb707b289e27379e59",
+    "url": "https://github.com/aniket-3001/cron-parser-go/blob/main/DECISIONS.md"
+  },
+  "mnemonist-sparse": {
+    "sha": "2c5a26d80da3034f057ca425876d7cc23aa00b40",
+    "url": "https://github.com/bhavyakeerthi3/mnemonist-rs/blob/main/src/sparse_set.rs"
+  },
+  "mnemonist-heap": {
+    "sha": "d41cd339ff896faae58b0a8568f6fe167b30694e",
+    "url": "https://github.com/bhavyakeerthi3/mnemonist-rs/blob/main/src/fibonacci_heap.rs"
+  },
+  "mnemonist-kd": {
+    "sha": "d22140bf1b6656cd1867729e130d005d2542e3a0",
+    "url": "https://github.com/bhavyakeerthi3/mnemonist-rs/blob/main/src/kd_tree.rs"
+  }
+}

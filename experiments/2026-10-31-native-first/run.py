@@ -87,7 +87,8 @@ def benchmark(names, seeds, trials, report_name):
         data = ROOT / f'data/{track}/full-seed{seed}'
         expected_path = WORK / f'oracle-{track}-seed{seed}' / OUTPUT[track]
         if expected_path.exists():
-            expected = hashlib.sha256(expected_path.read_bytes()).hexdigest()
+            expected_bytes = expected_path.read_bytes()
+            expected = hashlib.sha256(expected_bytes).hexdigest()
         else:
             spec = (ROOT / f'.out/setup/harness/specs/{dict(a="a-ingest",b="b-index",c="c-join",d="d-traverse")[track]}.md').read_text()
             raise RuntimeError(f'Missing oracle output {expected_path}; generate or copy verified reference output first')
@@ -114,7 +115,9 @@ def benchmark(names, seeds, trials, report_name):
                 process = subprocess.run(command, check=True, capture_output=True, text=True)
                 elapsed = (time.perf_counter_ns() - start) / 1e6
                 assert sorted(p.name for p in out.iterdir()) == [OUTPUT[track]]
-                digest = hashlib.sha256((out / OUTPUT[track]).read_bytes()).hexdigest()
+                actual_bytes = (out / OUTPUT[track]).read_bytes()
+                assert actual_bytes == expected_bytes, (name, seed, 'output bytes differ from reference')
+                digest = hashlib.sha256(actual_bytes).hexdigest()
                 assert digest == expected, (name, seed, digest, expected)
                 row = dict(variant=name, seed=seed, trial=trial, phase=phase, elapsed_ms=elapsed, sha256=digest)
                 if process.stderr:

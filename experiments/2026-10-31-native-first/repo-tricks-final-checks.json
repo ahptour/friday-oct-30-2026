@@ -1,0 +1,13 @@
+{
+  "recorded_utc": "2026-10-31T05:20:16.191680+00:00",
+  "HEAD": "1b8528789fb6cf7f6c847e8fabc566cc4923ad56",
+  "source_build_identity": "matched every selected/screened variant in the three raw reports",
+  "production_matches_archived": "b-inline-clauses.rs",
+  "production_A_C_D": "byte-identical to HEAD",
+  "oracle_hashes": "matched expected-hashes.json for B/D seeds 1/42",
+  "rustfmt": "passed",
+  "clippy": "passed: cargo clippy --manifest-path track-b/Cargo.toml --offline --all-targets -- -D warnings",
+  "git_diff_check": "passed",
+  "python_compile": "passed for native runner and analysis script",
+  "no_commit_push_submission": true
+}

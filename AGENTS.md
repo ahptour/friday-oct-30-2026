@@ -386,9 +386,37 @@ with equivalent correctness and credible measurements. Rank experiments by
 expected improvement to final overall score per engineering effort, including
 validation and unseen-input failure risk; a theoretical speedup is insufficient.
 
-### Latest native selection, refresh before acting
+### Latest repository-ideas follow-up, refresh before acting
 
-- Production B now matches archived `b-shortkeys-direct.rs`: exact 16-byte keys
+- Baseline was clean `1b85287`. Production B now matches archived
+  `b-inline-clauses.rs`, retaining the short-key dictionary and inlining up to
+  five Boolean operands with exact term-ID/polarity encoding. Screen medians
+  on full seeds 1 / 42: 159.986 -> 156.343 ms / 159.327 -> 155.605 ms;
+  independent repeat: 159.934 -> 155.570 / 159.945 -> 155.525 ms. Candidate
+  won 41/44 pairs. Estimated S566 -> S572 needs 0.316% less time at equal
+  official memory. Mac RSS/footprint are not official M; no inline-clause
+  Intel score or overall-score gain is established.
+- Selected candidate and production passed eight existing differential methods
+  and two boundary methods. An isolated polarity mutation failed the exhaustive
+  six-term operator-order test. Full benchmark/production bytes matched saved
+  reference outputs for seeds 1/42, not fresh full-reference runs. Formatting,
+  Clippy and Haswell code generation passed.
+- B masking out previously matched OR documents was flat/slower. D pruning
+  relaxations at the complete-route bound was about 2% slower; its diagnostic
+  skipped only about 0.02% of relaxations. Both are rejected. D passed all eleven
+  existing differential methods; production A/C/D remain unchanged.
+- Refreshed board generated 2026-10-31T05:12:30Z has all latest runs at
+  `1b85287`. Short-key B passed all Intel gates: `run-d5c09f62298a`, 441.470 ms,
+  67,166,208 bytes, S566, D1, 61.849606 points. Latest A/C/D are 75.809715 /
+  69.694784 / 62.910395. Equal judges still select A/C/D. Latest and historical
+  bests remain separate. Complete raw feed, archived sources, every sample,
+  mutation evidence and hypothetical score scenarios are under the native-first
+  experiment folder; start with `REPO-TRICKS.md`. No commit/push/submission was
+  made during this follow-up.
+
+### Earlier native selection (before the inline-clause follow-up)
+
+- Production B then matched archived `b-shortkeys-direct.rs`: exact 16-byte keys
   for short tokens, full 32-byte keys for longer tokens, built directly from the
   input queries. Two full-seed native batches matched verified reference outputs;
   eight existing differential suites and two boundary suites passed, including
