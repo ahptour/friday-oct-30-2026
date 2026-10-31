@@ -1,17 +1,3 @@
-use std::cmp::Reverse;
-use std::collections::{BinaryHeap, HashMap};
-use std::hash::{BuildHasherDefault, Hasher};
-#[derive(Default)]
-struct NodeHasher(u64);
-impl Hasher for NodeHasher {
-    fn finish(&self) -> u64 {
-        self.0
-    }
-    fn write(&mut self, bytes: &[u8]) {
-        self.0 = u64::from(u32::from_ne_bytes(bytes.try_into().unwrap()))
-            .wrapping_mul(0x9e3779b97f4a7c15);
-    }
-}
 use std::env;
 use std::ffi::c_void;
 use std::fs::{self, File};
@@ -164,71 +150,169 @@ impl Graph {
             })
     }
 }
-#[derive(Default)]
+struct Distances {
+    // High word is a generation; low word is the exact node ID. Generation
+    // zero is vacant, so even u32::MAX would be an ordinary representable key.
+    tags: Vec<u64>,
+    values: Vec<u64>,
+    generation: u32,
+    len: usize,
+}
+impl Distances {
+    fn new() -> Self {
+        Self {
+            tags: vec![0; 1024],
+            values: vec![0; 1024],
+            generation: 1,
+            len: 0,
+        }
+    }
+    fn clear(&mut self) {
+        self.len = 0;
+        self.generation = self.generation.wrapping_add(1);
+        if self.generation == 0 {
+            self.tags.fill(0);
+            self.generation = 1;
+        }
+    }
+    fn slot(&self, node: u32) -> usize {
+        let mask = self.tags.len() - 1;
+        let key = (u64::from(self.generation) << 32) | u64::from(node);
+        let mut slot = (u64::from(node).wrapping_mul(0x9e3779b97f4a7c15) >> 32) as usize & mask;
+        while self.tags[slot] != key && self.tags[slot] >> 32 == u64::from(self.generation) {
+            slot = (slot + 1) & mask;
+        }
+        slot
+    }
+    fn get(&self, node: u32) -> u64 {
+        let slot = self.slot(node);
+        if self.tags[slot] >> 32 == u64::from(self.generation) {
+            self.values[slot]
+        } else {
+            u64::MAX
+        }
+    }
+    fn improve(&mut self, node: u32, distance: u64) -> bool {
+        let mut slot = self.slot(node);
+        if self.tags[slot] >> 32 == u64::from(self.generation) {
+            if distance >= self.values[slot] {
+                return false;
+            }
+        } else {
+            if (self.len + 1) * 4 > self.tags.len() * 3 {
+                let capacity = self.tags.len() * 2;
+                let old_tags = std::mem::replace(&mut self.tags, vec![0; capacity]);
+                let old_values = std::mem::replace(&mut self.values, vec![0; capacity]);
+                for (tag, value) in old_tags.into_iter().zip(old_values) {
+                    if tag >> 32 == u64::from(self.generation) {
+                        let slot = self.slot(tag as u32);
+                        self.tags[slot] = tag;
+                        self.values[slot] = value;
+                    }
+                }
+                slot = self.slot(node);
+            }
+            self.len += 1;
+            self.tags[slot] = (u64::from(self.generation) << 32) | u64::from(node);
+        }
+        self.values[slot] = distance;
+        true
+    }
+}
+
 struct Queue {
-    small: BinaryHeap<Reverse<u64>>,
-    large: BinaryHeap<Reverse<(u64, u32)>>,
+    buckets: [Vec<(u64, u32)>; 65],
+    occupied: u64,
+    last: u64,
+    len: usize,
 }
 impl Queue {
     fn new() -> Self {
-        Self::default()
-    }
-    fn push(&mut self, Reverse((distance, node)): Reverse<(u64, u32)>) {
-        if distance <= u64::from(u32::MAX) {
-            self.small.push(Reverse((distance << 32) | u64::from(node)));
-        } else {
-            self.large.push(Reverse((distance, node)));
+        Self {
+            buckets: std::array::from_fn(|_| Vec::new()),
+            occupied: 0,
+            last: 0,
+            len: 0,
         }
     }
-    fn peek(&self) -> Option<Reverse<(u64, u32)>> {
-        self.small
-            .peek()
-            .map(|&Reverse(value)| Reverse((value >> 32, value as u32)))
-            .or_else(|| self.large.peek().copied())
+    fn bucket(&mut self, entry: (u64, u32)) {
+        let index = (64 - (entry.0 ^ self.last).leading_zeros()) as usize;
+        self.buckets[index].push(entry);
+        if index != 0 {
+            self.occupied |= 1u64 << (index - 1);
+        }
     }
-    fn pop(&mut self) -> Option<Reverse<(u64, u32)>> {
-        self.small
-            .pop()
-            .map(|Reverse(value)| Reverse((value >> 32, value as u32)))
-            .or_else(|| self.large.pop())
+    fn push(&mut self, distance: u64, node: u32) {
+        // Nonnegative weights make each direction's extracted distances
+        // monotone. Node IDs do not participate in the radix key.
+        debug_assert!(distance >= self.last);
+        self.bucket((distance, node));
+        self.len += 1;
+    }
+    fn peek(&mut self) -> Option<u64> {
+        if self.len == 0 {
+            return None;
+        }
+        if self.buckets[0].is_empty() {
+            let index = self.occupied.trailing_zeros() as usize + 1;
+            self.last = self.buckets[index]
+                .iter()
+                .map(|entry| entry.0)
+                .min()
+                .unwrap();
+            self.occupied &= !(1u64 << (index - 1));
+            // Every redistributed key moves to a strictly lower bucket;
+            // retain the drained bucket's allocation for subsequent queries.
+            while let Some(entry) = self.buckets[index].pop() {
+                self.bucket(entry);
+            }
+        }
+        Some(self.last)
+    }
+    fn pop(&mut self) -> Option<(u64, u32)> {
+        self.peek()?;
+        self.len -= 1;
+        self.buckets[0].pop()
     }
     fn len(&self) -> usize {
-        self.small.len() + self.large.len()
+        self.len
     }
     fn clear(&mut self) {
-        self.small.clear();
-        self.large.clear();
+        for bucket in &mut self.buckets {
+            bucket.clear();
+        }
+        self.occupied = 0;
+        self.last = 0;
+        self.len = 0;
     }
 }
 struct Search {
-    distance: HashMap<u32, u64, BuildHasherDefault<NodeHasher>>,
+    distance: Distances,
     heap: Queue,
 }
 impl Search {
     fn new() -> Self {
         Self {
-            distance: HashMap::default(),
+            distance: Distances::new(),
             heap: Queue::new(),
         }
     }
     fn start(&mut self, source: u32) {
         self.distance.clear();
         self.heap.clear();
-        self.distance.insert(source, 0);
-        self.heap.push(Reverse((0, source)));
+        self.distance.improve(source, 0);
+        self.heap.push(0, source);
     }
     fn step(&mut self, other: &Self, graph: &Graph, best: &mut u64) {
-        let Reverse((distance, node)) = self.heap.pop().unwrap();
-        if distance != self.distance[&node] {
+        let (distance, node) = self.heap.pop().unwrap();
+        if distance != self.distance.get(node) {
             return;
         }
         for Edge { node, weight } in graph.neighbors(node as usize) {
             let candidate = distance + u64::from(weight);
-            let slot = self.distance.entry(node).or_insert(u64::MAX);
-            if candidate < *slot {
-                *slot = candidate;
-                self.heap.push(Reverse((candidate, node)));
-                let back = other.distance.get(&node).copied().unwrap_or(u64::MAX);
+            if self.distance.improve(node, candidate) {
+                self.heap.push(candidate, node);
+                let back = other.distance.get(node);
                 if back != u64::MAX {
                     *best = (*best).min(candidate + back);
                 }
@@ -255,8 +339,7 @@ fn shortest(
     a.start(source);
     b.start(target);
     let mut best = u64::MAX;
-    while let (Some(Reverse((left, _))), Some(Reverse((right, _)))) = (a.heap.peek(), b.heap.peek())
-    {
+    while let (Some(left), Some(right)) = (a.heap.peek(), b.heap.peek()) {
         // The sum of frontier minima is a lower bound for any undiscovered path.
         if left + right >= best {
             break;

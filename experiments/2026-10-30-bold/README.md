@@ -38,23 +38,3 @@ public-data checks will not establish final holdout correctness.
 Compare complete measured scores per track. This batch combines several mechanisms
 within each track, so a result does not isolate their individual contributions.
 Preserve this complete experiment and restore clear losers after the Intel run.
-
-
-## Completed official run and selection
-
-All four tracks passed every official gate at f20c4a1, with measured static axes.
-The complete feed generated 2026-10-30 23:55:20 UTC is `intel-f20c4a1.json`.
-
-| Track | Time ms | Peak bytes | S | Points | Delta vs latest baseline | Delta vs former best |
-|---|---:|---:|---:|---:|---:|---:|
-| A | 31.596 | 23,285,760 | 488 | 78.010364 | +2.208416 | +0.720043 |
-| B | 497.701 | 177,471,488 | 564 | 56.339675 | -4.733244 | -5.563253 |
-| C | 54.888 | 13,746,176 | 540 | 69.533017 | +0.104205 | -0.178493 |
-| D | 378.197 | 99,250,176 | 437 | 59.082506 | -2.282040 | -2.886951 |
-
-Keep A: a 23.20% runtime reduction against the former best repays its memory
-and source costs, gaining 0.720043 points. Restore B and D from their exact
-baseline source files; both clearly lose. Keep C provisionally for an unchanged
-repeat in that restoration push: it beats the immediate repeat slightly but
-falls short of the historical best. The selected-combination repeat is pending;
-no isolated-mechanism or final holdout claim is made.
