@@ -1,73 +1,44 @@
 #!/usr/bin/env python3
-"""Speed Demon 2026, Track A (Ingest): the naive reference implementation.
-
-    python3.13 reference/a_ingest.py [--data /data] [--out /out]
-
-Reads requests.log and writes summary.txt: for every (UTC hour, endpoint) pair that
-has at least one request, the request count, the p50/p95/p99 latency (nearest rank) and
-the number and rate of 5xx responses. specs/a-ingest.md is the contract.
-
-This is the obvious version on purpose, and correct: read lines, split them, parse each
-timestamp with the datetime library, append each latency to a list per group, sort
-every list at the end.
-"""
+"""Track A: exact hourly summaries with streaming input and uint32 storage."""
 import argparse
+from array import array
 import os
-import sys
-from datetime import datetime
-
-INPUT_NAME = "requests.log"
-OUTPUT_NAME = "summary.txt"
-TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%f%z"   # RFC 3339; %z reads the trailing Z as UTC
-
-
-def percentile(sorted_values, p):
-    """Nearest rank: the value at 1-indexed rank ceil(p * n / 100)."""
-    n = len(sorted_values)
-    rank = (p * n + 99) // 100   # ceil(p * n / 100) in integer arithmetic
-    return sorted_values[rank - 1]
 
 
 def main(data_dir, out_dir):
-    latencies = {}   # (hour, endpoint) -> list of latency_us, in input order
-    errors = {}      # (hour, endpoint) -> number of 5xx responses
-
-    with open(os.path.join(data_dir, INPUT_NAME), encoding="utf-8") as f:
-        for line in f:
-            ts, method, endpoint, status, latency_us = line.rstrip("\n").split(" ")
-            when = datetime.strptime(ts, TIMESTAMP_FORMAT)
-            hour = when.replace(minute=0, second=0, microsecond=0)
-            key = (hour, endpoint)
-            if key not in latencies:
-                latencies[key] = []
-                errors[key] = 0
-            latencies[key].append(int(latency_us))
-            if 500 <= int(status) <= 599:
-                errors[key] += 1
-
-    lines = []
-    # Endpoints are ASCII (see the spec), so Python's string order is bytewise order.
-    for key in sorted(latencies):
-        hour, endpoint = key
-        values = sorted(latencies[key])
-        count = len(values)
-        errs = errors[key]
-        ppm = errs * 1_000_000 // count
-        lines.append(
-            f"{hour.strftime('%Y-%m-%dT%H:00:00Z')} {endpoint} {count} "
-            f"{percentile(values, 50)} {percentile(values, 95)} {percentile(values, 99)} "
-            f"{errs} {ppm}\n"
-        )
+    groups = {}
+    with open(os.path.join(data_dir, "requests.log"), "rb") as stream:
+        for line in stream:
+            # The grammar fixes the UTC timestamp at 27 bytes plus one space.
+            _method, endpoint, status, latency = line[28:].split(b" ")
+            key = (line[:13], endpoint)
+            group = groups.get(key)
+            if group is None:
+                # Keep every latency exactly, including the full uint32 range.
+                groups[key] = group = [array("I"), 0]
+            group[0].append(int(latency))
+            group[1] += status[0] == 53  # All valid statuses are three digits, 100..599.
 
     os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, OUTPUT_NAME), "w", encoding="utf-8", newline="\n") as f:
-        f.write("".join(lines))
+    with open(os.path.join(out_dir, "summary.txt"), "wb") as stream:
+        # Fixed-width UTC hours and ASCII endpoints sort in the required order.
+        for hour, endpoint in sorted(groups):
+            values, errors = groups[(hour, endpoint)]
+            values = sorted(values)
+            count = len(values)
+            p50 = values[(50 * count + 99) // 100 - 1]
+            p95 = values[(95 * count + 99) // 100 - 1]
+            p99 = values[(99 * count + 99) // 100 - 1]
+            summary = (
+                f"{hour.decode('ascii')}:00:00Z {endpoint.decode('ascii')} "
+                f"{count} {p50} {p95} {p99} {errors} {errors * 1_000_000 // count}\n"
+            )
+            stream.write(summary.encode("ascii"))
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Track A (Ingest) reference implementation.")
-    parser.add_argument("--data", default="/data", help="directory holding requests.log")
-    parser.add_argument("--out", default="/out", help="directory to write summary.txt into")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data", default="/data")
+    parser.add_argument("--out", default="/out")
     args = parser.parse_args()
     main(args.data, args.out)
-    sys.exit(0)
