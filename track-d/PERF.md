@@ -569,3 +569,53 @@ No local compilation, execution, tests or Docker were used. Public-data gate
 success does not establish correctness on the final holdout seed. The selected
 combination retains A, restores B/C, and keeps D; its next board run is a repeat
 of these selected implementations, not another algorithm experiment.
+
+
+## Direct inline graph: remove the CSR build (2026-10-30)
+
+Hypothesis: the fastest graph assembly is no separate graph assembly. Instead
+of routing every edge twice, counting degrees, prefix-summing and scattering
+into CSR, parsers reserve slots directly in the final node records. Each
+vertex/direction has a uint32 atomic degree and four uint32 atomic slots.
+Ordinary entries keep the existing exact 21-node-bit/10-weight-bit packing.
+A unique `fetch_add(Relaxed)` reservation assigns each directed insertion one
+slot. An edge that is wide or beyond four slots is appended, at full uint32
+width, to that parser's private exception vector. Only exceptions are merged
+after parsing; all ordinary edges are already in their final location.
+
+Four is not a degree limit. A wide edge within the first four reservations
+leaves a high-bit marker, so traversal detects overflow even at small degree.
+Degree above four also requires overflow. Traversal emits every ordinary
+inline edge and every full-width overflow edge exactly once. The second graph
+receives the exact reversed insertion. Producer scheduling changes storage
+placement but cannot remove an edge. Queries begin after every producer joins;
+join establishes publication, so reservation/store operations need no release
+ordering. The overflow maps are then immutable during queries. Search state,
+uint64 arithmetic, queue ordering, early exits and output format are unchanged.
+
+This replaces the whole construction/layout mechanism, not an isolated atomic
+operation. It removes two ordinary temporary edge copies and both CSR passes,
+but spends ten million random atomic reservations at full scale and increases
+inline adjacency payload. The arrays use 40*n = 69,620,480 bytes at full scale,
+plus overflow maps/vectors, allocator overhead and query scratch. Input pages
+can overlap those arrays during parsing. No peak-memory reduction or speedup
+is established by these payload numbers. High degrees and wide weights grow
+exactly; they may be expensive and are not treated as distribution guarantees.
+
+The official baseline repeat at `e6d4333` is `run-b2bf06e7dc60`:
+249.672 ms, 109,588,480 peak bytes, S457, D1, 63.015115 machine points.
+Historical best is `run-8274c9e7b4bd` at `196b0c0`: 247.106 ms,
+110,682,112 bytes, S457, D1, 63.084153 points. Both passed every gate.
+The complete response generated 2026-10-31T04:28:37Z is archived with full
+baseline/candidate source under `experiments/2026-10-30-inline-graph/`.
+A/B/C remain unchanged so the experiment isolates this track.
+
+Source review covers degree 0/1/4/5, wide edges in each inline reservation and
+after the inline range, all-wide neighborhoods, duplicate/parallel/self-loop
+edges, zero weights, node/weight packing boundaries, exact reversal, parser
+chunk boundaries and empty chunks, publication after joins, uint64 distances,
+empty query files and stable output order. No unsafe code was introduced.
+Rust formatting and whitespace checks are the permitted local verification;
+no Docker, local compilation, solver execution, tests or benchmarks are run.
+Official build, correctness and full measured score are pending. A public-data
+pass cannot establish correctness or timing on the final holdout seed.

@@ -18,7 +18,7 @@ use std::fs::{self, File};
 use std::io::{self, Write};
 use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU32, AtomicUsize, Ordering};
 use std::thread;
 
 unsafe extern "C" {
@@ -55,209 +55,101 @@ fn number(input: &[u8], cursor: &mut usize) -> u32 {
     *cursor += 1;
     value
 }
-struct Part {
-    edges: Vec<u64>,
-    large: Vec<[u32; 3]>,
-    wide_adjacency: usize,
+const INLINE: usize = 4;
+const WIDE: u32 = 1 << 31;
+#[derive(Clone, Copy)]
+struct Edge {
+    node: u32,
+    weight: u32,
 }
-impl Part {
-    fn new(capacity: usize) -> Self {
+// One 20-byte record per vertex, per direction. No degree-sized allocation or
+// edge-sized temporary is needed for the common case.
+struct Node {
+    degree: AtomicU32,
+    edges: [AtomicU32; INLINE],
+}
+struct Graph {
+    nodes: Vec<Node>,
+    overflow: HashMap<u32, Vec<Edge>, BuildHasherDefault<NodeHasher>>,
+}
+impl Graph {
+    fn new(n: usize) -> Self {
         Self {
-            edges: Vec::with_capacity(capacity),
-            large: Vec::new(),
-            wide_adjacency: 0,
+            nodes: (0..n)
+                .map(|_| Node {
+                    degree: AtomicU32::new(0),
+                    edges: std::array::from_fn(|_| AtomicU32::new(WIDE)),
+                })
+                .collect(),
+            overflow: HashMap::default(),
         }
     }
-    fn push(&mut self, edge: [u32; 3]) {
-        self.wide_adjacency += usize::from(edge[1] >= (1 << 21) || edge[2] >= (1 << 10));
-        let packed = if edge.iter().all(|&value| value < (1 << 21)) {
-            u64::from(edge[0]) | (u64::from(edge[1]) << 21) | (u64::from(edge[2]) << 42)
+    fn insert(&self, from: u32, to: u32, weight: u32, overflow: &mut Vec<[u32; 3]>) {
+        let node = &self.nodes[from as usize];
+        // Reservation only: no reader examines the graph until all producers
+        // join. Every reserved slot has one writer; relaxed atomics suffice.
+        let slot = node.degree.fetch_add(1, Ordering::Relaxed) as usize;
+        if slot < INLINE && to < (1 << 21) && weight < (1 << 10) {
+            node.edges[slot].store(to | (weight << 21), Ordering::Relaxed);
         } else {
-            let index = self.large.len() as u64;
-            self.large.push(edge);
-            (1 << 63) | index
-        };
-        self.edges.push(packed);
+            // A wide edge leaves its reserved inline slot tagged. High-degree
+            // and full-width edges are kept exactly, with no capacity bound.
+            overflow.push([from, to, weight]);
+        }
     }
-    fn iter(&self) -> impl Iterator<Item = [u32; 3]> + '_ {
-        self.edges.iter().map(|&v| {
-            if v >> 63 != 0 {
-                self.large[(v & 0x7fffffffffffffff) as usize]
-            } else {
-                [
-                    (v & 0x1fffff) as u32,
-                    ((v >> 21) & 0x1fffff) as u32,
-                    (v >> 42) as u32,
-                ]
+    fn finish(&mut self, parts: Vec<Vec<[u32; 3]>>) {
+        for part in parts {
+            for [from, node, weight] in part {
+                self.overflow
+                    .entry(from)
+                    .or_default()
+                    .push(Edge { node, weight });
             }
-        })
+        }
+    }
+    fn empty(&self, node: u32) -> bool {
+        self.nodes[node as usize].degree.load(Ordering::Relaxed) == 0
+    }
+    fn neighbors(&self, node: usize) -> impl Iterator<Item = Edge> + '_ {
+        let head = &self.nodes[node];
+        let degree = head.degree.load(Ordering::Relaxed) as usize;
+        let count = degree.min(INLINE);
+        let mut packed = [WIDE; INLINE];
+        let mut overflow = degree > INLINE;
+        for (dst, src) in packed.iter_mut().zip(&head.edges).take(count) {
+            *dst = src.load(Ordering::Relaxed);
+            overflow |= *dst & WIDE != 0;
+        }
+        let extra = if overflow {
+            self.overflow
+                .get(&(node as u32))
+                .map(Vec::as_slice)
+                .unwrap_or(&[])
+        } else {
+            &[]
+        };
+        packed
+            .into_iter()
+            .take(count)
+            .filter(|packed| packed & WIDE == 0)
+            .map(|packed| Edge {
+                node: packed & 0x1fffff,
+                weight: packed >> 21,
+            })
+            .chain(extra.iter().copied())
     }
 }
-fn parse(input: &[u8], n: usize, span: usize) -> Vec<[Part; 2]> {
-    // Reserve in proportion to each owner's node range, with 10% headroom.
-    // Equal reservations underfill every full range when the last is shorter.
-    // This only predicts capacity: skew and larger inputs still grow exactly.
-    let shift = span.trailing_zeros();
-    let mut buckets: Vec<[Part; 2]> = (0..n.div_ceil(span))
-        .map(|owner| {
-            let nodes = span.min(n - owner * span);
-            let share = (input.len() / 18).saturating_mul(nodes).div_ceil(n);
-            let capacity = share.saturating_add(share / 10).saturating_add(1);
-            std::array::from_fn(|_| Part::new(capacity))
-        })
-        .collect();
+fn parse(input: &[u8], graphs: &[Graph; 2]) -> [Vec<[u32; 3]>; 2] {
+    let mut overflow = [Vec::new(), Vec::new()];
     let mut cursor = 0;
     while cursor < input.len() {
         let from = number(input, &mut cursor);
         let to = number(input, &mut cursor);
         let weight = number(input, &mut cursor);
-        // Reverse the second copy now. Both builders can then use the same
-        // source-major count/scatter loop and never scan another owner's edges.
-        buckets[from as usize >> shift][0].push([from, to, weight]);
-        buckets[to as usize >> shift][1].push([to, from, weight]);
+        graphs[0].insert(from, to, weight, &mut overflow[0]);
+        graphs[1].insert(to, from, weight, &mut overflow[1]);
     }
-    buckets
-}
-#[derive(Clone, Copy, Default)]
-struct Edge {
-    node: u32,
-    weight: u32,
-}
-struct Graph {
-    offsets: Vec<u32>,
-    // Ordinary entries use 21 node bits and 10 weight bits. The high bit tags
-    // an index into full-width exceptions, including nodes outside 21 bits.
-    edges: Vec<u32>,
-    large: Vec<Edge>,
-}
-// All output slices have one owner; scoped threads need no atomics or raw
-// pointers. Bases translate private scatter cursors to final global CSR indices.
-struct Build<'a> {
-    offsets: &'a mut [u32],
-    edges: &'a mut [u32],
-    large: &'a mut [Edge],
-    node_base: usize,
-    edge_base: u32,
-    large_base: u32,
-}
-impl<'a> Build<'a> {
-    fn take(&mut self, nodes: usize, edges: usize, large: usize) -> Self {
-        let (offsets, rest) = std::mem::take(&mut self.offsets).split_at_mut(nodes);
-        self.offsets = rest;
-        let (entries, rest) = std::mem::take(&mut self.edges).split_at_mut(edges);
-        self.edges = rest;
-        let (exceptions, rest) = std::mem::take(&mut self.large).split_at_mut(large);
-        self.large = rest;
-        let result = Self {
-            offsets,
-            edges: entries,
-            large: exceptions,
-            node_base: self.node_base,
-            edge_base: self.edge_base,
-            large_base: self.large_base,
-        };
-        self.node_base += nodes;
-        self.edge_base += u32::try_from(edges).unwrap();
-        self.large_base += u32::try_from(large).unwrap();
-        result
-    }
-    fn fill(self, parts: Vec<Part>) {
-        for edge in parts.iter().flat_map(Part::iter) {
-            self.offsets[edge[0] as usize - self.node_base] += 1;
-        }
-        let mut cursor = self.edge_base;
-        for offset in self.offsets.iter_mut() {
-            let count = *offset;
-            *offset = cursor;
-            cursor += count;
-        }
-        let mut wide = 0;
-        // Consume each parser bucket, releasing its capacity immediately after
-        // scatter. The final arrays are already allocated and never concatenated.
-        for part in parts {
-            for edge in part.iter() {
-                let slot = &mut self.offsets[edge[0] as usize - self.node_base];
-                self.edges[(*slot - self.edge_base) as usize] =
-                    if edge[1] < (1 << 21) && edge[2] < (1 << 10) {
-                        edge[1] | (edge[2] << 21)
-                    } else {
-                        self.large[wide] = Edge {
-                            node: edge[1],
-                            weight: edge[2],
-                        };
-                        let index = self.large_base + u32::try_from(wide).unwrap();
-                        wide += 1;
-                        index | (1 << 31)
-                    };
-                *slot += 1;
-            }
-        }
-        self.offsets.rotate_right(1);
-        self.offsets[0] = self.edge_base;
-    }
-}
-impl Graph {
-    fn build(n: usize, span: usize, owned: Vec<[Vec<Part>; 2]>) -> [Self; 2] {
-        let counts: Vec<[(usize, usize); 2]> = owned
-            .iter()
-            .map(|pair| {
-                std::array::from_fn(|d| {
-                    (
-                        pair[d].iter().map(|p| p.edges.len()).sum(),
-                        pair[d].iter().map(|p| p.wide_adjacency).sum(),
-                    )
-                })
-            })
-            .collect();
-        let mut graphs: [Self; 2] = std::array::from_fn(|d| {
-            let edges: usize = counts.iter().map(|c| c[d].0).sum();
-            let large: usize = counts.iter().map(|c| c[d].1).sum();
-            assert!(large < 1 << 31);
-            let mut offsets = vec![0; n + 1];
-            offsets[n] = u32::try_from(edges).unwrap();
-            Self {
-                offsets,
-                edges: vec![0; edges],
-                large: vec![Edge::default(); large],
-            }
-        });
-        let [forward, backward] = &mut graphs;
-        let mut remaining = [forward, backward].map(|graph| Build {
-            offsets: &mut graph.offsets[..n],
-            edges: &mut graph.edges,
-            large: &mut graph.large,
-            node_base: 0,
-            edge_base: 0,
-            large_base: 0,
-        });
-        thread::scope(|scope| {
-            for (owner, pair) in owned.into_iter().enumerate() {
-                let nodes = span.min(n - owner * span);
-                let a = remaining[0].take(nodes, counts[owner][0].0, counts[owner][0].1);
-                let b = remaining[1].take(nodes, counts[owner][1].0, counts[owner][1].1);
-                scope.spawn(move || {
-                    let [forward, backward] = pair;
-                    a.fill(forward);
-                    b.fill(backward);
-                });
-            }
-        });
-        graphs
-    }
-    fn neighbors(&self, node: usize) -> impl Iterator<Item = Edge> + '_ {
-        self.edges[self.offsets[node] as usize..self.offsets[node + 1] as usize]
-            .iter()
-            .map(|&packed| {
-                if packed >> 31 == 0 {
-                    Edge {
-                        node: packed & 0x1fffff,
-                        weight: packed >> 21,
-                    }
-                } else {
-                    self.large[(packed & 0x7fffffff) as usize]
-                }
-            })
-    }
+    overflow
 }
 #[derive(Default)]
 struct Queue {
@@ -341,9 +233,7 @@ fn shortest(
     if source == target {
         return 0;
     }
-    if forward.offsets[source as usize] == forward.offsets[source as usize + 1]
-        || backward.offsets[target as usize] == backward.offsets[target as usize + 1]
-    {
+    if forward.empty(source) || backward.empty(target) {
         return -1;
     }
     let [a, b] = searches;
@@ -381,8 +271,9 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
     let workers = thread::available_parallelism()
         .map_or(1, usize::from)
         .min(12);
-    let span = n.div_ceil(workers).max(1).next_power_of_two();
-    let owners = n.div_ceil(span);
+    // The arrays are the final graph. Producers reserve disjoint slots directly
+    // while parsing; only overflow records survive as temporary edge storage.
+    let mut graphs = [Graph::new(n), Graph::new(n)];
     let parsed = thread::scope(|scope| {
         let mut jobs = Vec::new();
         let begin = start;
@@ -392,7 +283,8 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
                 end += 1;
             }
             let chunk = &input[start..end];
-            jobs.push(scope.spawn(move || parse(chunk, n, span)));
+            let graphs = &graphs;
+            jobs.push(scope.spawn(move || parse(chunk, graphs)));
             start = end;
         }
         jobs.into_iter()
@@ -400,16 +292,17 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
             .collect::<Vec<_>>()
     });
     drop(mapping);
-    let mut owned: Vec<[Vec<Part>; 2]> = (0..owners)
-        .map(|_| std::array::from_fn(|_| Vec::with_capacity(workers)))
-        .collect();
-    for parser in parsed {
-        for (owner, [forward, backward]) in parser.into_iter().enumerate() {
-            owned[owner][0].push(forward);
-            owned[owner][1].push(backward);
-        }
+    let mut overflow: [Vec<Vec<[u32; 3]>>; 2] = std::array::from_fn(|_| Vec::new());
+    for [forward, backward] in parsed {
+        overflow[0].push(forward);
+        overflow[1].push(backward);
     }
-    let [forward, backward] = Graph::build(n, span, owned);
+    // Merge only exceptions after producer joins. Query workers see immutable
+    // graph state, including every wide, duplicate, parallel and self-loop edge.
+    let [forward_overflow, backward_overflow] = overflow;
+    graphs[0].finish(forward_overflow);
+    graphs[1].finish(backward_overflow);
+    let [forward, backward] = graphs;
     let input = fs::read(data.join("queries.txt"))?;
     let mut cursor = 0;
     let mut queries = Vec::new();
