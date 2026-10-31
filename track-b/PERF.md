@@ -412,3 +412,23 @@ The formatted nonblank/noncomment source delta is +25 lines versus `2cea13f`,
 estimating S667 until the official static-axis pass. At the historical best's
 unchanged memory, beating its full score requires approximately 410.4 ms.
 This is the measurement threshold, not a predicted runtime.
+
+
+### Completed Intel result and selection at `196b0c0`
+
+`run-3aed697fe27b` passed check, build, correctness, timeout and sandbox,
+with measured static axes: **502.058 ms**, **67,682,304 peak bytes**,
+**S667**, D1, **59.885225 machine points**.
+Delta versus preceding historical best: **-2.017703 points**.
+
+Restore the earlier streaming source from `3b74c52` (`b-reference.rs`). The candidate
+gained 0.240312 points over `2cea13f` but remains 2.017703 points below the
+historical best. Its smaller peak did not pay for extra source and runtime.
+
+Raw official response generated 2026-10-31T04:23:43Z and complete candidate
+source are preserved under
+[`experiments/2026-10-30-next-shot`](../experiments/2026-10-30-next-shot/).
+No local compilation, execution, tests or Docker were used. Public-data gate
+success does not establish correctness on the final holdout seed. The selected
+combination retains A, restores B/C, and keeps D; its next board run is a repeat
+of these selected implementations, not another algorithm experiment.

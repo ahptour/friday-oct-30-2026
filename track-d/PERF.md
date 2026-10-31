@@ -547,3 +547,25 @@ whitespace checks passed. Per repository instruction, no Docker, local
 compilation, solver execution, tests or benchmarks were run. Official build,
 correctness and performance remain pending; source review cannot establish
 holdout correctness.
+
+
+### Completed Intel result and selection at `196b0c0`
+
+`run-8274c9e7b4bd` passed check, build, correctness, timeout and sandbox,
+with measured static axes: **247.106 ms**, **110,682,112 peak bytes**,
+**S457**, D1, **63.084153 machine points**.
+Delta versus preceding historical best: **+1.114696 points**.
+
+Keep the new routed builder and historical binary-heap search engine. Time
+fell 20.3% from the historical best while memory rose 14.1% and S rose 361 to
+457; the complete score improved 1.114696 points. Relative to `2cea13f`, time
+fell 46.2% and score rose 6.578646 points. This is one public-seed result,
+not evidence that each individual mechanism helped or that the gain is repeatable.
+
+Raw official response generated 2026-10-31T04:23:43Z and complete candidate
+source are preserved under
+[`experiments/2026-10-30-next-shot`](../experiments/2026-10-30-next-shot/).
+No local compilation, execution, tests or Docker were used. Public-data gate
+success does not establish correctness on the final holdout seed. The selected
+combination retains A, restores B/C, and keeps D; its next board run is a repeat
+of these selected implementations, not another algorithm experiment.

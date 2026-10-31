@@ -5,7 +5,7 @@ use std::hash::{BuildHasherDefault, Hash, Hasher};
 use std::io::{self, Write};
 use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{self, Receiver, SyncSender};
+use std::sync::Mutex;
 use std::thread;
 
 unsafe extern "C" {
@@ -252,7 +252,7 @@ struct Group {
     names_distinct: u64,
 }
 const NAME_SHARDS: usize = 32;
-const NAME_BATCH: usize = 512;
+const NAME_BATCH: usize = 64;
 struct Shard<'a> {
     keys: Vec<u64>,
     heads: Vec<[u8; 24]>,
@@ -312,30 +312,17 @@ impl<'a> Shard<'a> {
         fresh
     }
 }
-#[derive(Clone, Copy, Debug)]
-struct Pending<'a> {
-    name: &'a [u8],
-    country: usize,
-    hash: u64,
+struct Names<'a> {
+    shards: Vec<Mutex<Shard<'a>>>,
 }
-type Batch<'a> = (usize, Vec<Pending<'a>>);
-fn own_names(
-    input: &[u8],
-    receiver: Receiver<Batch<'_>>,
-    owner: usize,
-    owners: usize,
-    capacity: usize,
-    countries: usize,
-) -> Vec<u64> {
-    // A name always routes to one shard, and each shard has exactly one owner.
-    // These tables never cross a mutex or move between producer cores.
-    let mut shards: Vec<_> = (owner..NAME_SHARDS)
-        .step_by(owners)
-        .map(|_| Shard::new(capacity / NAME_SHARDS))
-        .collect();
-    let mut counts = vec![0; countries];
-    while let Ok((shard, rows)) = receiver.recv() {
-        let table = &mut shards[shard / owners];
+impl<'a> Names<'a> {
+    fn flush(&self, shard: usize, input: &[u8], rows: &mut Vec<Pending<'a>>, groups: &mut [Group]) {
+        if rows.is_empty() {
+            return;
+        }
+        // One lock covers the entire batch. Keys, heads and membership words
+        // are accessed only by the owner of this shard's mutex.
+        let mut table = self.shards[shard].lock().unwrap();
         for i in 0..rows.len() {
             if let Some(next) = rows.get(i + 8) {
                 let slot = next.hash as usize & (table.keys.len() - 1);
@@ -344,35 +331,38 @@ fn own_names(
                 prefetch(&table.countries[slot]);
             }
             let row = rows[i];
-            counts[row.country] += u64::from(table.mark(input, row));
+            groups[row.country].names_distinct += u64::from(table.mark(input, row));
         }
+        rows.clear();
     }
-    counts
+}
+#[derive(Clone, Copy)]
+struct Pending<'a> {
+    name: &'a [u8],
+    country: usize,
+    hash: u64,
 }
 struct Pipeline<'a> {
     pending: [Vec<Pending<'a>>; NAME_SHARDS],
 }
 impl<'a> Pipeline<'a> {
-    fn push(&mut self, row: Pending<'a>, senders: &[SyncSender<Batch<'a>>]) {
+    fn push(&mut self, row: Pending<'a>, names: &Names<'a>, input: &[u8], groups: &mut [Group]) {
         let shard = (row.hash >> 48) as usize & (NAME_SHARDS - 1);
         let rows = &mut self.pending[shard];
         rows.push(row);
         if rows.len() == NAME_BATCH {
-            let batch = std::mem::replace(rows, Vec::with_capacity(NAME_BATCH));
-            senders[shard % senders.len()].send((shard, batch)).unwrap();
+            names.flush(shard, input, rows, groups);
         }
     }
-    fn finish(self, senders: &[SyncSender<Batch<'a>>]) {
-        for (shard, rows) in self.pending.into_iter().enumerate() {
-            if !rows.is_empty() {
-                senders[shard % senders.len()].send((shard, rows)).unwrap();
-            }
+    fn finish(&mut self, names: &Names<'a>, input: &[u8], groups: &mut [Group]) {
+        for (shard, rows) in self.pending.iter_mut().enumerate() {
+            names.flush(shard, input, rows, groups);
         }
     }
 }
 fn parse<'a>(
     input: &'a [u8],
-    senders: &[SyncSender<Batch<'a>>],
+    names: &Names<'a>,
     start: usize,
     end: usize,
     lookup: &[u8],
@@ -425,12 +415,14 @@ fn parse<'a>(
                 country,
                 hash: hash.finish(),
             },
-            senders,
+            names,
+            input,
+            &mut groups,
         );
         pos = (eol + 1).min(input.len());
     }
-    // Transfer every partial batch before the producer's senders are dropped.
-    pipeline.finish(senders);
+    // Every partial batch is committed before this worker publishes its groups.
+    pipeline.finish(names, input, &mut groups);
     groups
 }
 
@@ -443,7 +435,8 @@ fn money(cents: i64) -> String {
     )
 }
 
-fn finish(keys: &[Vec<u8>], parts: &[Vec<Group>], distinct: &[Vec<u64>]) -> Vec<(Vec<u8>, String)> {
+fn finish(keys: &[Vec<u8>], parts: &[Vec<Group>], names: Names<'_>) -> Vec<(Vec<u8>, String)> {
+    drop(names);
     let mut output = Vec::new();
     for country in 0..keys.len() {
         let mut total = Group::default();
@@ -463,8 +456,8 @@ fn finish(keys: &[Vec<u8>], parts: &[Vec<Group>], distinct: &[Vec<u64>]) -> Vec<
             total.max = total.max.max(group.max);
             total.name_bytes += group.name_bytes;
             total.note_bytes += group.note_bytes;
+            total.names_distinct += group.names_distinct;
         }
-        total.names_distinct = distinct.iter().map(|part| part[country]).sum();
         if total.count > 0 {
             output.push((
                 keys[country].clone(),
@@ -496,12 +489,10 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
     let map = Mapping(ptr, len);
     let input = map.bytes();
     let header_end = find(input, 0, b'\n') + 1;
-    // Six producer/owner pairs use the twelve scoring threads. On a single
-    // available CPU one pair still makes progress: these are OS threads, not
-    // tasks occupying a fixed worker pool while waiting for their consumers.
-    let workers = (thread::available_parallelism().map_or(1, usize::from) / 2)
-        .clamp(1, 6)
-        .min(len.div_ceil(64 * 1024).max(1));
+    let workers = thread::available_parallelism()
+        .map_or(1, usize::from)
+        .min(12)
+        .min(len.div_ceil(64 * 1024));
     let mut bounds = vec![header_end];
     for worker in 1..workers {
         let mut pos = len * worker / workers;
@@ -519,42 +510,26 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
     // Cap the common-name table; full byte equality and the overflow map keep
     // distinct counting exact even when the table is crowded.
     let capacity = (len / 64).next_power_of_two().clamp(1024, 1 << 17);
-    let (parts, distinct) = thread::scope(|scope| {
-        let mut senders = Vec::new();
-        let mut owners = Vec::new();
-        for owner in 0..workers {
-            // At most two queued batches per owner bound the live backlog.
-            let (sender, receiver) = mpsc::sync_channel(2);
-            senders.push(sender);
-            let countries = keys.len();
-            owners
-                .push(scope.spawn(move || {
-                    own_names(input, receiver, owner, workers, capacity, countries)
-                }));
-        }
+    let names = Names {
+        shards: (0..NAME_SHARDS)
+            .map(|_| Mutex::new(Shard::new(capacity / NAME_SHARDS)))
+            .collect(),
+    };
+    let parts = thread::scope(|scope| {
         let jobs: Vec<_> = bounds
             .windows(2)
             .map(|bound| {
                 let lookup = &lookup;
                 let countries = keys.len();
-                // Each producer owns its senders, so completion closes every
-                // channel after the final queued partial batch has been sent.
-                let senders = senders.clone();
-                scope.spawn(move || parse(input, &senders, bound[0], bound[1], lookup, countries))
+                let names = &names;
+                scope.spawn(move || parse(input, names, bound[0], bound[1], lookup, countries))
             })
             .collect();
-        drop(senders);
-        let parts = jobs
-            .into_iter()
+        jobs.into_iter()
             .map(|job| job.join().unwrap())
-            .collect::<Vec<_>>();
-        let distinct = owners
-            .into_iter()
-            .map(|owner| owner.join().unwrap())
-            .collect::<Vec<_>>();
-        (parts, distinct)
+            .collect::<Vec<_>>()
     });
-    let mut rows = finish(&keys, &parts, &distinct);
+    let mut rows = finish(&keys, &parts, names);
     rows.sort_unstable_by(|a, b| a.0.cmp(&b.0));
     fs::create_dir_all(out)?;
     let mut output = File::create(out.join("aggregates.txt"))?;

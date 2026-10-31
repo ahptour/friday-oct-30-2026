@@ -110,3 +110,13 @@ too much in the recorded full-scale local trials.
 The compact-record A and predecessor-aware D trials at `330dbc3` passed the
 Intel correctness gates but lost machine points. Their sources and measurements
 are preserved outside the production folders; see [PERF.md](PERF.md).
+
+
+## Measured selection
+
+`run-8274c9e7b4bd` at `196b0c0` passed every official gate: 247.106 ms,
+110,682,112 peak bytes, S457, D1, 63.084153 machine points. This is 20.3%
+faster and 1.114696 points higher than the preceding historical best after
+accounting for memory and source cost. This candidate is retained. See PERF.md
+for complete evidence and limits; the public-seed result is not a holdout proof.
+No local compilation or runtime verification was performed.

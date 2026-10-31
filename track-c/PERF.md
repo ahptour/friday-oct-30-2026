@@ -426,3 +426,25 @@ header-only and single-CPU behavior, and mapping lifetime. No Docker, local
 compilation, solver execution, tests or benchmarks were run. Official Intel
 build, correctness and performance remain pending; public-data success would
 not establish final holdout correctness.
+
+
+### Completed Intel result and selection at `196b0c0`
+
+`run-b030da9573bb` passed check, build, correctness, timeout and sandbox,
+with measured static axes: **59.713 ms**, **16,965,632 peak bytes**,
+**S559**, D1, **67.591713 machine points**.
+Delta versus preceding historical best: **-2.530607 points**.
+
+Restore the preceding batched-mutex source (`c-reference.rs`, source from
+`2cea13f`, identical to the historical best). The new pipeline was 12.7% slower
+than the immediately preceding run, used 21.0% more peak memory, and lost
+2.239347 points. Exclusive ownership did not repay queue and producer costs
+in this run; no phase attribution is claimed.
+
+Raw official response generated 2026-10-31T04:23:43Z and complete candidate
+source are preserved under
+[`experiments/2026-10-30-next-shot`](../experiments/2026-10-30-next-shot/).
+No local compilation, execution, tests or Docker were used. Public-data gate
+success does not establish correctness on the final holdout seed. The selected
+combination retains A, restores B/C, and keeps D; its next board run is a repeat
+of these selected implementations, not another algorithm experiment.
