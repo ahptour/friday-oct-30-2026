@@ -30,3 +30,30 @@ verification. No Docker, local compilation, solver executions, tests or runtime
 benchmarks are performed. Official gates and performance are pending. No new
 dependency, compiler flag, image, seed detection or precomputed answer is added.
 The independent Python oracle is unchanged. See track-d/PERF.md for review cases.
+
+
+## Official result: correct, but rejected
+
+The full official response generated 2026-10-31T04:33:18Z is preserved in
+`intel-addf6d8.json`. Candidate `addf6d8`, D run `run-4d58ed0ef75d`, passed
+check, build, correctness, timeout and sandbox, with measured static axes:
+
+| Version | Time ms | Peak bytes | S | D | Machine points |
+|---|---:|---:|---:|---:|---:|
+| Selected CSR baseline repeat | 249.672 | 109,588,480 | 457 | 1 | 63.015115 |
+| Direct inline candidate | 296.114 | 130,162,688 | 351 | 1 | 61.275239 |
+
+The candidate took 18.6% longer and used 18.8% more peak memory than the
+baseline repeat. Reducing S by 23.2% did not compensate: it lost 1.739876
+machine points against that repeat and 1.808914 against the historical best.
+A/B/C were unchanged and passed every gate. Their repeat changes are not
+attributed to this D experiment.
+
+Restore the complete `d-baseline.rs` to production and retain both sources and
+this measured failure outside the track directory. The direct-build hypothesis
+did not produce an efficiency gain. Random atomics, node-array initialization,
+overflow merging and query locality are possible costs; no phase profile was
+collected, so this result does not isolate a cause. A public-seed gate pass is
+not a holdout proof. No local Docker, compilation, solution execution, tests or
+benchmarks were run. Formatting/whitespace checks passed; the restored Rust
+source is byte-identical to the preceding selected implementation.

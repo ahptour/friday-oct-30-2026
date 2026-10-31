@@ -5,40 +5,49 @@ defines directed shortest-path queries with nonnegative uint32 edge weights.
 
 ## Approach
 
-The current experiment removes CSR construction. Twelve parsers write directly
-into the final graph while reading their disjoint, newline-aligned chunks.
-Each direction has four compact adjacency slots per vertex, next to an atomic
-degree counter. An atomic reservation assigns each edge a unique slot. Ordinary
-neighbors below 2^21 with weights below 1024 occupy one uint32. Everything else,
-including every edge after the fourth slot, goes into exact per-parser overflow
-vectors. After parsers join, only those exceptions are merged into node-keyed
-adjacency lists. There is no full edge-routing buffer, prefix sum, count/scatter
-pass, final graph concatenation or second copy of ordinary parsed edges.
+Map the graph read-only and split its edge lines among up to twelve parsing
+workers. During parsing, route each edge into a forward bucket owned by its
+source node and a reverse bucket owned by its target node. Owners cover disjoint
+power-of-two node ranges; twelve available threads yield seven owners at full
+scale. Reverse buckets store the endpoints reversed, so both directions use the
+same construction code. Each temporary copy packs three 21-bit fields into a
+u64 when possible and uses an exact full-width exception otherwise. Initial
+bucket reservations are proportional to their owner's node count, with 10%
+headroom; a short final range therefore does not cause undersizing of every
+full range. Buckets still grow without a fixed-capacity correctness assumption.
 
-Four slots are a storage choice, never a degree bound. A wide edge reserves its
-place but leaves an inline tag; traversal skips that tag and reads the complete
-overflow list. Degree greater than four also selects overflow. Thus scheduling
-can change which edges are inline without changing graph semantics. Parallel
-edges, duplicate lines, self-loops, zero weights, arbitrary node IDs and full
-uint32 weights are retained. Slot atomics use relaxed ordering because no reader
-traverses the graph before all producer threads join. No new unsafe code is used.
+Bucket lengths and wide-entry counts determine the final global CSR allocation.
+Safe mutable slice splitting gives each owner its own node-offset range, edge
+range and exception range in those final arrays. Each owner counts and scatters
+only its own routed edges; it consumes and frees each parser bucket immediately
+after scatter. No owner rescans the whole graph, and no fragment concatenation,
+atomic scatter or raw-pointer write is required. Offset cursors are restored
+within each owner range; the global final sentinel is set before workers start.
+The resulting graph is ordinary contiguous CSR, with the same query lookup as
+the earlier implementation. Each ordinary adjacency entry occupies four bytes:
+21 global node bits, ten weight bits and an exception tag. Exceptions retain full
+uint32 neighbors and weights. Zero weights, duplicate/parallel edges, self-loops
+and arbitrary input order remain exact.
 
-At full scale the two inline arrays have a 40*n byte payload, about 69.6 MB,
-plus exact overflow maps, transient overflow vectors and query scratch. This is
-an allocation budget, not a measured cgroup peak. Parsing still touches mapped
-input pages. Random atomic writes, cache-line contention, overflow allocation
-and inline-slot scans could outweigh the removed construction phases.
+This deliberately spends two compact temporary edge copies to enable parallel
+construction. The common temporary payload is 16*m bytes, plus bucket capacity
+slack and wide exceptions. Final ordinary CSR payload is 8*m + 8*(n+1) bytes for
+both directions. Capacity growth is unrestricted, so skew may raise the peak;
+these are allocation budgets, not measured cgroup memory.
 
-The query engine is unchanged: up to twelve workers share the completed graph
-and use bidirectional Dijkstra, sparse HashMap distances and compact/wide binary
-heaps. Distances remain uint64; queries are answered in input order. Same-node
-and empty-adjacency cases retain their exact fast paths. All input-derived
-structures are built inside the timed run. No seed recognition, cached answers,
-new dependency, image or compiler flag is introduced.
+Up to twelve query workers share the graph and consume queries from an atomic
+counter. The search engine returns to the earlier binary heaps and sparse
+HashMap distances. Each query uses bidirectional Dijkstra with uint64 distances.
+Small queue entries pack distance and node into a u64; larger distances use a
+separate full-width heap. Expand the smaller frontier and stop when the sum of
+minimum distances cannot improve the best complete path. Empty source/target
+adjacency immediately proves unreachability, except same-node queries return 0.
+Results are stored by query index and written in input order. All temporary construction
+storage is released before search workers start.
 
-The complete preceding CSR implementation and this candidate are preserved
-outside production in `experiments/2026-10-30-inline-graph/`. See PERF.md for
-source-review details and the official build/correctness/performance result.
+The only unsafe operations are Unix memory mapping and creating a read-only
+slice from the successful mapping. Scoped parsing workers finish before the
+mapping is released. The algorithm and graph accesses use checked indexing.
 
 ## Dependencies
 
@@ -103,11 +112,24 @@ Intel correctness gates but lost machine points. Their sources and measurements
 are preserved outside the production folders; see [PERF.md](PERF.md).
 
 
-## Preceding measured selection
+## Measured selection
 
 `run-8274c9e7b4bd` at `196b0c0` passed every official gate: 247.106 ms,
 110,682,112 peak bytes, S457, D1, 63.084153 machine points. This is 20.3%
 faster and 1.114696 points higher than the preceding historical best after
-accounting for memory and source cost. This was the preceding selected baseline. See PERF.md
+accounting for memory and source cost. This candidate is retained. See PERF.md
 for complete evidence and limits; the public-seed result is not a holdout proof.
 No local compilation or runtime verification was performed.
+
+
+## Direct inline graph experiment (rejected)
+
+At `addf6d8`, parsers installed edges directly into four atomic inline slots per
+node, with exact high-degree/wide-edge overflow. This removed CSR assembly and
+reduced measured S457 to S351. Official run `run-4d58ed0ef75d` passed every
+gate, but took 296.114 ms at 130,162,688 peak bytes, scoring 61.275239 points.
+The preceding selected CSR repeat took 249.672 ms at 109,588,480 bytes and
+scored 63.015115. The complete score lost 1.739876 points, so the preceding
+CSR source is restored byte-for-byte. Full candidate, baseline and official
+responses remain in `experiments/2026-10-30-inline-graph/`; see PERF.md.
+No local compilation, execution, Docker, tests or benchmarks were run.
