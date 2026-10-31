@@ -428,3 +428,38 @@ tests, benchmarks or Docker runs were performed, following the user's request.
 Official build/correctness/performance results remain pending. Complete baseline
 and candidate sources are in `experiments/2026-10-30-bold/d-baseline.rs` and
 `experiments/2026-10-30-bold/d-candidate.rs` outside the production track.
+
+
+## Parallel node-owned graph assembly experiment (2026-10-30)
+
+Replace the two whole-graph CSR builders with power-of-two vertex owners.
+Every owner streams the compact input edges twice, counting then scattering
+both graph directions into its own CSR fragments. At full scale twelve threads
+produce seven ranges of at most 262,144 vertices. Global node IDs and exact
+per-fragment exception entries retain every legal edge. Queries select a
+fragment by shift/mask. There is no atomic scatter, global concatenation or
+additional edge-sized partition buffer. The current generation distance tables,
+radix queues, parser and twelve query workers remain unchanged.
+
+The intended gain is parallel construction and smaller random-write ranges.
+The deliberate cost is extra streaming/decoding: seven owners each read the
+compact edges twice instead of two builders each reading twice. This is an
+experiment, not a profiled or measured claim. Ordinary final edge payload
+remains four bytes per direction; each fragment adds one offset sentinel.
+
+Immediate official baseline at `b90a4a4`, `run-9ead5837f230`: 379.135 ms,
+100,716,544 bytes, S437, D1, 58.991915 points. Historical best is
+`run-e4950b1f6c67`: 309.870 ms, 96,964,608 bytes, S361, 61.969457 points.
+
+Formatted nonblank/noncomment source delta estimates S495, pending the
+official canonical formatter/static-axis pass. At unchanged historical-best
+memory, break-even against that best is approximately 281.9 ms. Actual
+runtime and peak are unknown. Compare the complete measured score, including
+source and memory, before selecting this candidate.
+
+Complete baseline/candidate source and raw baseline evidence are preserved in
+[`experiments/2026-10-30-query-machine`](../experiments/2026-10-30-query-machine/).
+Source review and Rust formatting/whitespace checks passed. No Docker, local
+compilation, solution execution, tests or benchmarks were performed, following
+the current repository instruction. Official Intel build, correctness and
+performance are pending; public-data correctness will not prove holdout safety.

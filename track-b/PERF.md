@@ -314,3 +314,34 @@ static-axis pass. At unchanged baseline memory that requires approximately
 474.8 ms versus the latest repeat, or 431.6 ms at historical-best memory, to
 break even. Actual memory is a material unknown because local inverted indexes
 survive through query evaluation.
+
+
+## Compiled phrase machine experiment (2026-10-30)
+
+Replace the adaptive local inverted indexes and per-phrase KMP rescans with one
+shared Aho-Corasick automaton over exact query token IDs, fed by the same corpus
+pass as streaming 64-document Boolean evaluation. Boolean compilation, sampled
+anchor scheduling, tokenization and summary arithmetic reuse the preceding
+streaming implementation. Root transitions are direct; nonroot arcs use exact
+integer keys. Failure/terminal links share suffix work, duplicate query lines
+keep separate emissions, and terminal document stamps avoid repeated counting
+and redundant suffix walks. Unknown tokens and document boundaries reset state;
+separator bytes preserve token adjacency. No corpus index or token sequence is
+retained. Actual input queries compile at runtime; no answers are precomputed.
+
+Immediate official baseline at `b90a4a4`, `run-6f1d594cc1cc`: 505.661 ms,
+177,463,296 bytes, S564, D1, 56.167602 points. Historical best is
+`run-4a9c515be486`: 437.009 ms, 70,397,952 bytes, S541, 61.902928 points.
+
+Formatted nonblank/noncomment source delta estimates S642, pending the
+official canonical formatter/static-axis pass. At unchanged historical-best
+memory, break-even against that best is approximately 415.1 ms. Actual
+runtime and peak are unknown. Compare the complete measured score, including
+source and memory, before selecting this candidate.
+
+Complete baseline/candidate source and raw baseline evidence are preserved in
+[`experiments/2026-10-30-query-machine`](../experiments/2026-10-30-query-machine/).
+Source review and Rust formatting/whitespace checks passed. No Docker, local
+compilation, solution execution, tests or benchmarks were performed, following
+the current repository instruction. Official Intel build, correctness and
+performance are pending; public-data correctness will not prove holdout safety.

@@ -89,51 +89,64 @@ struct Edge {
     node: u32,
     weight: u32,
 }
-struct Graph {
+struct Adjacency {
     offsets: Vec<u32>,
-    // Ordinary entries use 21 node bits and 10 weight bits. The high bit tags
-    // an index into full-width exceptions, including nodes outside 21 bits.
+    // The high bit selects an exact full-width exception. Ordinary entries
+    // retain 21 global node bits and 10 weight bits, independent of ownership.
     edges: Vec<u32>,
     large: Vec<Edge>,
 }
-impl Graph {
-    fn build(n: usize, parts: &[Part], reverse: bool) -> Self {
-        let mut offsets = vec![0u32; n + 1];
-        let from = usize::from(reverse);
+impl Adjacency {
+    fn build_pair(parts: &[Part], begin: usize, end: usize) -> [Self; 2] {
+        let mut pair: [Self; 2] = std::array::from_fn(|_| Self {
+            offsets: vec![0; end - begin + 1],
+            edges: Vec::new(),
+            large: Vec::new(),
+        });
+        // Each owner repeatedly streams the compact edge list, but its random
+        // writes touch only its own small vertex range. Count both directions
+        // in one pass; no atomic cursors, per-worker histograms or edge copies.
         for edge in parts.iter().flat_map(Part::iter) {
-            offsets[edge[from] as usize + 1] += 1;
+            for (direction, graph) in pair.iter_mut().enumerate() {
+                let node = edge[direction] as usize;
+                if (begin..end).contains(&node) {
+                    graph.offsets[node - begin + 1] += 1;
+                }
+            }
         }
-        for i in 1..=n {
-            offsets[i] += offsets[i - 1];
+        for graph in &mut pair {
+            for i in 1..graph.offsets.len() {
+                graph.offsets[i] += graph.offsets[i - 1];
+            }
+            graph.edges = vec![0; *graph.offsets.last().unwrap() as usize];
         }
-        let mut edges = vec![0u32; offsets[n] as usize];
-        let mut large = Vec::new();
         for edge in parts.iter().flat_map(Part::iter) {
-            let slot = &mut offsets[edge[from] as usize];
-            let node = edge[1 - from];
-            edges[*slot as usize] = if node < (1 << 21) && edge[2] < (1 << 10) {
-                node | (edge[2] << 21)
-            } else {
-                // Preserve every legal weight and node ID rather than disabling
-                // compaction for an entire graph because of a rare wide edge.
-                let index = u32::try_from(large.len()).unwrap();
-                assert!(index < 1 << 31);
-                large.push(Edge {
-                    node,
-                    weight: edge[2],
-                });
-                index | (1 << 31)
-            };
-            *slot += 1;
+            for (direction, graph) in pair.iter_mut().enumerate() {
+                let node = edge[direction] as usize;
+                if !(begin..end).contains(&node) {
+                    continue;
+                }
+                let slot = &mut graph.offsets[node - begin];
+                let neighbor = edge[1 - direction];
+                graph.edges[*slot as usize] = if neighbor < (1 << 21) && edge[2] < (1 << 10) {
+                    neighbor | (edge[2] << 21)
+                } else {
+                    let index = u32::try_from(graph.large.len()).unwrap();
+                    assert!(index < 1 << 31);
+                    graph.large.push(Edge {
+                        node: neighbor,
+                        weight: edge[2],
+                    });
+                    index | (1 << 31)
+                };
+                *slot += 1;
+            }
         }
-        // Construction leaves each node's end offset; restore start offsets.
-        offsets.rotate_right(1);
-        offsets[0] = 0;
-        Self {
-            offsets,
-            edges,
-            large,
+        for graph in &mut pair {
+            graph.offsets.rotate_right(1);
+            graph.offsets[0] = 0;
         }
+        pair
     }
     fn neighbors(&self, node: usize) -> impl Iterator<Item = Edge> + '_ {
         self.edges[self.offsets[node] as usize..self.offsets[node + 1] as usize]
@@ -148,6 +161,59 @@ impl Graph {
                     self.large[(packed & 0x7fffffff) as usize]
                 }
             })
+    }
+}
+struct Graph {
+    shift: u32,
+    shards: Vec<Adjacency>,
+}
+impl Graph {
+    fn build(n: usize, parts: &[Part], workers: usize) -> (Self, Self) {
+        // Power-of-two ownership makes every query lookup a shift and mask.
+        // At full scale twelve workers give seven 262,144-node ranges.
+        let span = n.div_ceil(workers).max(1).next_power_of_two();
+        let pairs = thread::scope(|scope| {
+            let jobs: Vec<_> = (0..n)
+                .step_by(span)
+                .map(|begin| {
+                    scope.spawn(move || Adjacency::build_pair(parts, begin, (begin + span).min(n)))
+                })
+                .collect();
+            jobs.into_iter()
+                .map(|job| job.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+        let mut forward = Vec::with_capacity(pairs.len());
+        let mut backward = Vec::with_capacity(pairs.len());
+        for [a, b] in pairs {
+            forward.push(a);
+            backward.push(b);
+        }
+        let shift = span.trailing_zeros();
+        (
+            Self {
+                shift,
+                shards: forward,
+            },
+            Self {
+                shift,
+                shards: backward,
+            },
+        )
+    }
+    fn shard(&self, node: usize) -> (&Adjacency, usize) {
+        (
+            &self.shards[node >> self.shift],
+            node & ((1usize << self.shift) - 1),
+        )
+    }
+    fn has_edges(&self, node: usize) -> bool {
+        let (shard, local) = self.shard(node);
+        shard.offsets[local] != shard.offsets[local + 1]
+    }
+    fn neighbors(&self, node: usize) -> impl Iterator<Item = Edge> + '_ {
+        let (shard, local) = self.shard(node);
+        shard.neighbors(local)
     }
 }
 struct Distances {
@@ -330,9 +396,7 @@ fn shortest(
     if source == target {
         return 0;
     }
-    if forward.offsets[source as usize] == forward.offsets[source as usize + 1]
-        || backward.offsets[target as usize] == backward.offsets[target as usize + 1]
-    {
+    if !forward.has_edges(source as usize) || !backward.has_edges(target as usize) {
         return -1;
     }
     let [a, b] = searches;
@@ -385,11 +449,7 @@ fn solve(data: &Path, out: &Path) -> io::Result<()> {
             .map(|job| job.join().unwrap())
             .collect::<Vec<_>>()
     });
-    let (forward, backward) = thread::scope(|scope| {
-        let reverse = scope.spawn(|| Graph::build(n, &parts, true));
-        let forward = Graph::build(n, &parts, false);
-        (forward, reverse.join().unwrap())
-    });
+    let (forward, backward) = Graph::build(n, &parts, workers);
     drop(parts);
     drop(mapping);
     let input = fs::read(data.join("queries.txt"))?;

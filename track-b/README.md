@@ -22,13 +22,17 @@ unions combine them into query masks. Counts use population counts, ID sums use
 weighted population counts, and only the first ten IDs need enumeration. Clear
 only masks touched in the completed block; no full corpus index is retained.
 
-For phrases, choose the sampled rarest term and record its occurrences in the
-current document's token-ID sequence. Compare the complete phrase around every
-candidate occurrence. Unknown tokens retain a sentinel position, repeated terms
-must match at distinct consecutive positions, and document boundaries cannot be
-crossed. Document stamps prevent repeated matches from counting twice. Each
-worker sizes its stamps only for phrase queries and its Boolean masks only for
-Boolean queries; dense category IDs map back to the original result order.
+Compile all phrases into one shared Aho-Corasick automaton over exact token
+IDs. Shared prefixes reuse trie states; failure and terminal suffix links handle
+suffix matches and overlapping phrases. Root transitions use a direct token-ID
+array; nonroot transitions use exact integer keys in one shared hash table.
+Duplicate query lines share a terminal with separate emissions. Every worker
+feeds tokens to this machine during the same pass that builds Boolean masks,
+without postings, stored token sequences or per-phrase text rescans. Unknown
+words reset the state; separator bytes preserve it; document boundaries reset
+it. Stamps prevent a terminal and its already-reported suffixes from counting
+more than once per document. Workers keep stamps indexed by terminal emission,
+so scratch grows with phrase count rather than trie-state count.
 
 Each result records its exact count, 64-bit ID sum, and ten smallest IDs. Worker
 summaries merge in document order. On x86-64, SSE2 classifies and lowercases up to
@@ -54,18 +58,21 @@ cargo clippy --manifest-path track-b/Cargo.toml --offline --all-targets -- -D wa
 python3 check.py b --data data/b/full-seed1 --expected f86973c210228141bcb6f1f1b10188ad2a9b65f71e7cd7cf4590b38de4e80927
 ```
 
-The seven differential suites cover the worked example, operator associativity,
+The existing differential suites are available to check the worked example, operator associativity,
 ASCII/Unicode distinctions, 32-byte tokens, phrase positions, repeated terms,
 duplicate queries, document boundaries, empty inputs, all six-term operator sequences, terms absent from the sampling
 prefix, randomized documents spanning worker boundaries, and category-only or
 interleaved queries with repeated clauses and output-order checks.
+
+This candidate has not been run locally; current verification and official
+board evidence are recorded in PERF.md.
 
 For native development the binary accepts `--data DIRECTORY --out DIRECTORY`;
 defaults are `/data` and `/out`. See [PERF.md](PERF.md) for measurements.
 
 ## With another 24 hours
 
-Profile the Boolean block size, phrase anchor dispatch, and SIMD tokenizer on
+Profile the Boolean block size, automaton transitions, and SIMD tokenizer on
 the scoring CPU. Compare compact token dictionaries and frequency-ordered IDs
 only when the measured gain pays for their extra source and memory. Retain
 improvements only after independent-seed and full-output verification.
