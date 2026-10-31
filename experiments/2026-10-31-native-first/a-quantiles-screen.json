@@ -1,0 +1,528 @@
+{
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "compiler": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "flags": "opt-level=3 lto=thin codegen-units=1 panic=abort strip=symbols target-cpu=native",
+  "timing": "perf_counter_ns around native subprocess; 2 warmups; randomized serialized order",
+  "memory": "separate macOS time -l runs; not Linux cgroup memory.peak",
+  "source_sha256": {
+    "a-base": "613a6d9ce8c49f1bca7953f55c8c8cb13e0ef23368869854558ea543ae7b99cc",
+    "a-quantiles": "7a6cc2a72a6d1fe5b9930fa618ea3ee8386e72586cbd968f00f86c5e62530dc7"
+  },
+  "summary": {
+    "a-base/seed1": {
+      "median_ms": 16.768625,
+      "min_ms": 15.477834,
+      "max_ms": 17.47925,
+      "max_rss_bytes": 264093696,
+      "max_peak_footprint_bytes": 24724080
+    },
+    "a-quantiles/seed1": {
+      "median_ms": 15.550459,
+      "min_ms": 15.238792,
+      "max_ms": 18.092875,
+      "max_rss_bytes": 264142848,
+      "max_peak_footprint_bytes": 24773232
+    },
+    "a-base/seed42": {
+      "median_ms": 16.672791,
+      "min_ms": 15.667834,
+      "max_ms": 17.824791,
+      "max_rss_bytes": 259145728,
+      "max_peak_footprint_bytes": 25215600
+    },
+    "a-quantiles/seed42": {
+      "median_ms": 16.827833,
+      "min_ms": 15.843584,
+      "max_ms": 17.337416,
+      "max_rss_bytes": 259227648,
+      "max_peak_footprint_bytes": 25297520
+    }
+  },
+  "rows": [
+    {
+      "variant": "a-base",
+      "seed": 1,
+      "trial": -2,
+      "phase": "warmup",
+      "elapsed_ms": 15.813625,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 1,
+      "trial": -2,
+      "phase": "warmup",
+      "elapsed_ms": 122.219084,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 1,
+      "trial": -1,
+      "phase": "warmup",
+      "elapsed_ms": 18.276791,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-base",
+      "seed": 1,
+      "trial": -1,
+      "phase": "warmup",
+      "elapsed_ms": 15.731333,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 1,
+      "trial": 0,
+      "phase": "timing",
+      "elapsed_ms": 15.550459,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-base",
+      "seed": 1,
+      "trial": 0,
+      "phase": "timing",
+      "elapsed_ms": 15.955333,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-base",
+      "seed": 1,
+      "trial": 1,
+      "phase": "timing",
+      "elapsed_ms": 17.288291,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 1,
+      "trial": 1,
+      "phase": "timing",
+      "elapsed_ms": 18.092875,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 1,
+      "trial": 2,
+      "phase": "timing",
+      "elapsed_ms": 15.385208,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-base",
+      "seed": 1,
+      "trial": 2,
+      "phase": "timing",
+      "elapsed_ms": 17.15075,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 1,
+      "trial": 3,
+      "phase": "timing",
+      "elapsed_ms": 15.713333,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-base",
+      "seed": 1,
+      "trial": 3,
+      "phase": "timing",
+      "elapsed_ms": 16.768625,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-base",
+      "seed": 1,
+      "trial": 4,
+      "phase": "timing",
+      "elapsed_ms": 17.47925,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 1,
+      "trial": 4,
+      "phase": "timing",
+      "elapsed_ms": 15.320375,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-base",
+      "seed": 1,
+      "trial": 5,
+      "phase": "timing",
+      "elapsed_ms": 16.300167,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 1,
+      "trial": 5,
+      "phase": "timing",
+      "elapsed_ms": 16.024833,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 1,
+      "trial": 6,
+      "phase": "timing",
+      "elapsed_ms": 15.238792,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-base",
+      "seed": 1,
+      "trial": 6,
+      "phase": "timing",
+      "elapsed_ms": 16.289541,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 1,
+      "trial": 7,
+      "phase": "timing",
+      "elapsed_ms": 15.31675,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-base",
+      "seed": 1,
+      "trial": 7,
+      "phase": "timing",
+      "elapsed_ms": 17.442417,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 1,
+      "trial": 8,
+      "phase": "timing",
+      "elapsed_ms": 17.086875,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-base",
+      "seed": 1,
+      "trial": 8,
+      "phase": "timing",
+      "elapsed_ms": 15.477834,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 1,
+      "trial": 9,
+      "phase": "memory",
+      "elapsed_ms": 18.407417,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3",
+      "stderr": "        0.01 real         0.09 user         0.03 sys\n           264142848  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               16361  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   2  voluntary context switches\n                 200  involuntary context switches\n          1431192451  instructions retired\n           513893586  cycles elapsed\n            24773232  peak memory footprint\n",
+      "maximum resident set size": 264142848,
+      "peak memory footprint": 24773232
+    },
+    {
+      "variant": "a-base",
+      "seed": 1,
+      "trial": 9,
+      "phase": "memory",
+      "elapsed_ms": 17.834334,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3",
+      "stderr": "        0.01 real         0.09 user         0.02 sys\n           264093696  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               16361  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   2  voluntary context switches\n                 187  involuntary context switches\n          1423635816  instructions retired\n           489641485  cycles elapsed\n            24724080  peak memory footprint\n",
+      "maximum resident set size": 264093696,
+      "peak memory footprint": 24724080
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 1,
+      "trial": 10,
+      "phase": "memory",
+      "elapsed_ms": 19.214792,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3",
+      "stderr": "        0.01 real         0.10 user         0.02 sys\n           264093696  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               16360  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   3  voluntary context switches\n                 150  involuntary context switches\n          1434151457  instructions retired\n           495156253  cycles elapsed\n            24724080  peak memory footprint\n",
+      "maximum resident set size": 264093696,
+      "peak memory footprint": 24724080
+    },
+    {
+      "variant": "a-base",
+      "seed": 1,
+      "trial": 10,
+      "phase": "memory",
+      "elapsed_ms": 17.624792,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3",
+      "stderr": "        0.01 real         0.09 user         0.02 sys\n           263946240  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               16345  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   0  voluntary context switches\n                 164  involuntary context switches\n          1427276407  instructions retired\n           491631262  cycles elapsed\n            24576624  peak memory footprint\n",
+      "maximum resident set size": 263946240,
+      "peak memory footprint": 24576624
+    },
+    {
+      "variant": "a-base",
+      "seed": 1,
+      "trial": 11,
+      "phase": "memory",
+      "elapsed_ms": 16.821458,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3",
+      "stderr": "        0.01 real         0.09 user         0.02 sys\n           263897088  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               16350  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   0  voluntary context switches\n                 124  involuntary context switches\n          1415757937  instructions retired\n           485669564  cycles elapsed\n            24527472  peak memory footprint\n",
+      "maximum resident set size": 263897088,
+      "peak memory footprint": 24527472
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 1,
+      "trial": 11,
+      "phase": "memory",
+      "elapsed_ms": 19.047208,
+      "sha256": "495ca09682b9673ef836a506496177680bb4a3af54255174befddb1f83481cd3",
+      "stderr": "        0.01 real         0.10 user         0.02 sys\n           263667712  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               16339  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   0  voluntary context switches\n                 129  involuntary context switches\n          1429273897  instructions retired\n           491672624  cycles elapsed\n            24298096  peak memory footprint\n",
+      "maximum resident set size": 263667712,
+      "peak memory footprint": 24298096
+    },
+    {
+      "variant": "a-base",
+      "seed": 42,
+      "trial": -2,
+      "phase": "warmup",
+      "elapsed_ms": 17.448541,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 42,
+      "trial": -2,
+      "phase": "warmup",
+      "elapsed_ms": 15.375,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 42,
+      "trial": -1,
+      "phase": "warmup",
+      "elapsed_ms": 16.518083,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-base",
+      "seed": 42,
+      "trial": -1,
+      "phase": "warmup",
+      "elapsed_ms": 15.789583,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 42,
+      "trial": 0,
+      "phase": "timing",
+      "elapsed_ms": 17.079125,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-base",
+      "seed": 42,
+      "trial": 0,
+      "phase": "timing",
+      "elapsed_ms": 17.824791,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-base",
+      "seed": 42,
+      "trial": 1,
+      "phase": "timing",
+      "elapsed_ms": 16.474417,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 42,
+      "trial": 1,
+      "phase": "timing",
+      "elapsed_ms": 16.672667,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 42,
+      "trial": 2,
+      "phase": "timing",
+      "elapsed_ms": 17.337416,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-base",
+      "seed": 42,
+      "trial": 2,
+      "phase": "timing",
+      "elapsed_ms": 15.667834,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 42,
+      "trial": 3,
+      "phase": "timing",
+      "elapsed_ms": 15.843584,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-base",
+      "seed": 42,
+      "trial": 3,
+      "phase": "timing",
+      "elapsed_ms": 15.95775,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-base",
+      "seed": 42,
+      "trial": 4,
+      "phase": "timing",
+      "elapsed_ms": 16.672791,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 42,
+      "trial": 4,
+      "phase": "timing",
+      "elapsed_ms": 17.006125,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-base",
+      "seed": 42,
+      "trial": 5,
+      "phase": "timing",
+      "elapsed_ms": 17.752834,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 42,
+      "trial": 5,
+      "phase": "timing",
+      "elapsed_ms": 17.000875,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 42,
+      "trial": 6,
+      "phase": "timing",
+      "elapsed_ms": 16.827833,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-base",
+      "seed": 42,
+      "trial": 6,
+      "phase": "timing",
+      "elapsed_ms": 17.633,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 42,
+      "trial": 7,
+      "phase": "timing",
+      "elapsed_ms": 16.139334,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-base",
+      "seed": 42,
+      "trial": 7,
+      "phase": "timing",
+      "elapsed_ms": 15.72875,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 42,
+      "trial": 8,
+      "phase": "timing",
+      "elapsed_ms": 16.473958,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-base",
+      "seed": 42,
+      "trial": 8,
+      "phase": "timing",
+      "elapsed_ms": 17.011667,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1"
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 42,
+      "trial": 9,
+      "phase": "memory",
+      "elapsed_ms": 20.183916,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+      "stderr": "        0.01 real         0.09 user         0.02 sys\n           259227648  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               16060  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   3  voluntary context switches\n                 160  involuntary context switches\n          1415179553  instructions retired\n           489344349  cycles elapsed\n            25297520  peak memory footprint\n",
+      "maximum resident set size": 259227648,
+      "peak memory footprint": 25297520
+    },
+    {
+      "variant": "a-base",
+      "seed": 42,
+      "trial": 9,
+      "phase": "memory",
+      "elapsed_ms": 18.929125,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+      "stderr": "        0.01 real         0.09 user         0.03 sys\n           259145728  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               16054  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   1  voluntary context switches\n                 180  involuntary context switches\n          1397019509  instructions retired\n           498276155  cycles elapsed\n            25215600  peak memory footprint\n",
+      "maximum resident set size": 259145728,
+      "peak memory footprint": 25215600
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 42,
+      "trial": 10,
+      "phase": "memory",
+      "elapsed_ms": 18.158916,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+      "stderr": "        0.01 real         0.09 user         0.02 sys\n           258588672  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               16011  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   3  voluntary context switches\n                 146  involuntary context switches\n          1415647345  instructions retired\n           483174423  cycles elapsed\n            24658544  peak memory footprint\n",
+      "maximum resident set size": 258588672,
+      "peak memory footprint": 24658544
+    },
+    {
+      "variant": "a-base",
+      "seed": 42,
+      "trial": 10,
+      "phase": "memory",
+      "elapsed_ms": 18.830792,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+      "stderr": "        0.01 real         0.09 user         0.03 sys\n           258949120  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               16039  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   2  voluntary context switches\n                 176  involuntary context switches\n          1393929324  instructions retired\n           497950088  cycles elapsed\n            25018992  peak memory footprint\n",
+      "maximum resident set size": 258949120,
+      "peak memory footprint": 25018992
+    },
+    {
+      "variant": "a-base",
+      "seed": 42,
+      "trial": 11,
+      "phase": "memory",
+      "elapsed_ms": 18.324708,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+      "stderr": "        0.01 real         0.09 user         0.03 sys\n           258555904  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               16012  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   2  voluntary context switches\n                 220  involuntary context switches\n          1399264302  instructions retired\n           502719190  cycles elapsed\n            24625776  peak memory footprint\n",
+      "maximum resident set size": 258555904,
+      "peak memory footprint": 24625776
+    },
+    {
+      "variant": "a-quantiles",
+      "seed": 42,
+      "trial": 11,
+      "phase": "memory",
+      "elapsed_ms": 18.24175,
+      "sha256": "b148ea775ca3fe99edb1329adfc5e85f75f9a67c9dffc37a2caff92d3bbdf9b1",
+      "stderr": "        0.01 real         0.09 user         0.02 sys\n           258572288  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               16017  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   1  voluntary context switches\n                 146  involuntary context switches\n          1412919264  instructions retired\n           484877829  cycles elapsed\n            24642160  peak memory footprint\n",
+      "maximum resident set size": 258572288,
+      "peak memory footprint": 24642160
+    }
+  ]
+}
